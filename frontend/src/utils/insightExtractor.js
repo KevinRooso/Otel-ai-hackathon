@@ -99,35 +99,36 @@ export function extractInsights(history) {
     }
 
     // Segment mix → table + chart
-    if (parsed.segments || (Array.isArray(parsed) && parsed[0]?.segment)) {
-      const segments = parsed.segments || parsed
+    if (parsed.by_segment || parsed.segments || (Array.isArray(parsed) && parsed[0]?.segment)) {
+      const segments = parsed.by_segment || parsed.segments || parsed
       if (segments.length > 0) {
         artifacts.push({
           id: msg.tool_call_id + '-segments',
           type: 'table',
           title: 'Segment Mix',
           data: segments.map(s => ({
-            segment: s.segment || s.market_code,
+            segment: s.segment || s.market_name || s.market_code,
             room_nights: s.room_nights,
-            pct: Number((s.pct || s.share || 0).toFixed(1)),
+            pct: Number((s.pct_of_room_nights || s.pct || s.share || 0).toFixed(1)),
           })),
         })
         artifacts.push({
           id: msg.tool_call_id + '-seg-chart',
           type: 'chart',
           title: 'Segment Distribution',
+          chartType: 'donut',
           data: segments.map(s => ({
-            segment: s.segment || s.market_code,
-            room_nights: s.room_nights,
+            name: s.segment || s.market_name || s.market_code,
+            value: Number((s.pct_of_room_nights || s.pct || s.share || 0).toFixed(1)),
           })),
         })
       }
     }
 
     // Pickup → KPIs
-    if (parsed.total_new_room_nights !== undefined || parsed.pickup_room_nights !== undefined) {
-      const rn = parsed.total_new_room_nights || parsed.pickup_room_nights || 0
-      const rev = parsed.total_new_revenue || parsed.pickup_revenue || 0
+    if (parsed.summary?.room_nights_picked_up !== undefined || parsed.total_new_room_nights !== undefined || parsed.pickup_room_nights !== undefined) {
+      const rn = parsed.summary?.room_nights_picked_up || parsed.total_new_room_nights || parsed.pickup_room_nights || 0
+      const rev = parsed.summary?.revenue_picked_up || parsed.total_new_revenue || parsed.pickup_revenue || 0
       artifacts.push({
         id: msg.tool_call_id + '-pickup',
         type: 'kpi',
@@ -136,11 +137,23 @@ export function extractInsights(history) {
         detail: `${formatCurrency(rev)} in new bookings`,
         tone: 'success',
       })
+      if (parsed.by_segment?.length) {
+        artifacts.push({
+          id: msg.tool_call_id + '-pickup-segments',
+          type: 'chart',
+          title: 'Pickup by Segment',
+          chartType: 'bar',
+          data: parsed.by_segment.slice(0, 6).map((segment) => ({
+            segment: segment.market_name,
+            room_nights: segment.room_nights,
+          })),
+        })
+      }
     }
 
     // Cancellations → KPI
-    if (parsed.total_cancelled_room_nights !== undefined || parsed.cancelled_room_nights !== undefined) {
-      const rn = parsed.total_cancelled_room_nights || parsed.cancelled_room_nights || 0
+    if (parsed.summary?.room_nights_lost !== undefined || parsed.total_cancelled_room_nights !== undefined || parsed.cancelled_room_nights !== undefined) {
+      const rn = parsed.summary?.room_nights_lost || parsed.total_cancelled_room_nights || parsed.cancelled_room_nights || 0
       artifacts.push({
         id: msg.tool_call_id + '-cancels',
         type: 'kpi',
@@ -149,6 +162,20 @@ export function extractInsights(history) {
         detail: 'Cancelled in last 7 days',
         tone: rn > 50 ? 'warning' : 'neutral',
       })
+
+      if (parsed.by_stay_month?.length) {
+        artifacts.push({
+          id: msg.tool_call_id + '-cancel-months',
+          type: 'chart',
+          title: 'Cancellation Impact by Stay Month',
+          chartType: 'trend',
+          data: parsed.by_stay_month.map((item) => ({
+            month: monthLabel(item.affected_stay_month),
+            room_nights_lost: item.room_nights_lost,
+            revenue_lost: Math.round(item.revenue_lost || 0),
+          })),
+        })
+      }
     }
   }
 

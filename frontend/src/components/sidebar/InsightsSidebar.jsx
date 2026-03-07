@@ -32,7 +32,14 @@ function InsightsSidebar({ artifacts, onClear }) {
         )}
         {charts.length > 0 && (
           <SidebarSection title="Charts" defaultOpen>
-            {charts.map(c => <ArtifactChart key={c.id} data={c.data} title={c.title} />)}
+            {charts.map(c => (
+              <ArtifactChart
+                key={c.id}
+                data={c.data}
+                title={c.title}
+                chartType={c.chartType}
+              />
+            ))}
           </SidebarSection>
         )}
         {artifacts.length === 0 && (

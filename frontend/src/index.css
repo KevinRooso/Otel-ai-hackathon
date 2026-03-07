@@ -148,7 +148,7 @@ button {
 .primary-button {
   padding: 0.75rem 1.5rem;
   background: var(--accent);
-  color: white;
+  color: #06131b;
   border-radius: 8px;
   font-weight: 500;
   cursor: pointer;
@@ -274,7 +274,7 @@ button {
 .message-bubble.user {
   align-self: flex-end;
   background: var(--accent);
-  color: white;
+  color: #06131b;
   border-bottom-right-radius: 4px;
 }
 
@@ -283,6 +283,7 @@ button {
   background: var(--surface-strong);
   border: 1px solid var(--border);
   border-bottom-left-radius: 4px;
+  color: var(--text);
 }
 
 .message-bubble.assistant p { margin: 0.4rem 0; }
@@ -319,6 +320,114 @@ button {
 }
 
 .message-bubble.assistant strong { color: var(--accent); }
+
+.response-artifact-stack {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 0.9rem;
+}
+
+.otel-response {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.otel-response__eyebrow {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+
+.otel-response__title {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.25;
+  color: var(--text);
+}
+
+.otel-response__lead {
+  margin: 0;
+  color: var(--text);
+}
+
+.otel-response__metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.65rem;
+}
+
+.otel-metric-card {
+  padding: 0.8rem 0.9rem;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 82%, white 18%);
+  border: 1px solid var(--border);
+  display: grid;
+  gap: 0.3rem;
+}
+
+.otel-metric-card__label {
+  font-size: 0.74rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.otel-metric-card__value {
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.otel-response__section {
+  padding: 0.85rem 0.9rem;
+  border-radius: 14px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+}
+
+.otel-response__section--accent {
+  background: color-mix(in srgb, var(--surface-soft) 86%, var(--accent) 14%);
+  border-color: color-mix(in srgb, var(--border) 70%, var(--accent) 30%);
+  color: var(--text);
+}
+
+.otel-response__section h3,
+.otel-response__section p {
+  margin: 0;
+}
+
+.otel-response__section--accent p,
+.otel-response__section--accent li,
+.otel-response__section--accent strong,
+.otel-response__section--accent span {
+  color: var(--text) !important;
+}
+
+.otel-response__section h3 {
+  margin-bottom: 0.35rem;
+  font-size: 0.84rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.otel-response__section--accent h3 {
+  color: color-mix(in srgb, var(--text) 78%, var(--accent) 22%) !important;
+}
+
+.otel-response__section--accent * {
+  text-shadow: none;
+}
+
+.otel-response__section--accent a {
+  color: var(--text) !important;
+  text-decoration-color: color-mix(in srgb, var(--text) 45%, transparent 55%);
+}
+
+.otel-response__section--accent [style*="color:"],
+.otel-response__section--accent font[color] {
+  color: var(--text) !important;
+}
 
 .message-collapsed {
   position: relative;
@@ -386,7 +495,7 @@ button {
   height: 40px;
   border-radius: 50%;
   background: var(--accent);
-  color: white;
+  color: #06131b;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -401,9 +510,40 @@ button {
 /* ── Typing Indicator ── */
 .typing-indicator {
   display: flex;
-  gap: 4px;
-  padding: 0.875rem 1.125rem;
+  gap: 0.85rem;
+  padding: 1rem 1.125rem;
   align-self: flex-start;
+  background: color-mix(in srgb, var(--surface-soft) 90%, white 10%);
+  border: 1px solid color-mix(in srgb, var(--border) 84%, white 16%);
+  border-radius: 18px;
+  max-width: 32rem;
+}
+
+.typing-indicator__dots {
+  display: flex;
+  gap: 4px;
+  padding-top: 0.25rem;
+}
+
+.typing-indicator__content {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.typing-indicator__title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.typing-indicator__steps {
+  margin: 0;
+  padding-left: 1rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+  display: grid;
+  gap: 0.2rem;
 }
 
 .typing-dot {
@@ -458,9 +598,48 @@ button {
   transition: border-color 0.2s, background 0.2s;
 }
 
+.briefing-banner {
+  margin: 0 1.5rem 1.25rem;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border) 68%, var(--accent) 32%);
+  background: color-mix(in srgb, var(--surface-soft) 88%, var(--accent) 12%);
+  color: var(--text);
+  font-size: 0.84rem;
+}
+
+.briefing-banner strong {
+  color: var(--text);
+}
+
 .question-chip:hover {
   border-color: var(--accent);
   background: var(--accent-soft);
+}
+
+.follow-up-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 1rem;
+}
+
+.follow-up-chip {
+  padding: 0.55rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border) 60%, var(--accent) 40%);
+  background: color-mix(in srgb, var(--surface-soft) 78%, var(--accent) 22%);
+  color: var(--text);
+  font-size: 0.8rem;
+  line-height: 1.3;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.follow-up-chip:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--surface-soft) 66%, var(--accent) 34%);
 }
 
 /* ── Chat Error ── */
@@ -628,10 +807,33 @@ button {
   padding: 0.75rem;
 }
 
+.artifact-chart--compact {
+  padding: 0.65rem;
+}
+
 .artifact-chart h4 {
   font-size: 0.8rem;
   color: var(--muted);
   margin: 0 0 0.5rem;
+}
+
+.artifact-tooltip {
+  background: #0d1b24;
+  border: 1px solid rgba(116, 168, 198, 0.16);
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.24);
+}
+
+.artifact-tooltip__label {
+  margin: 0 0 0.35rem;
+  color: #e8f4fb;
+  font-weight: 600;
+}
+
+.artifact-tooltip__row {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
 }
 
 /* ── Welcome error ── */

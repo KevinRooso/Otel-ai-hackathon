@@ -5,6 +5,7 @@ import { getHealth, getMemory, getBriefing, sendChatMessage } from './api/client
 import { extractInsights } from './utils/insightExtractor'
 
 const STORAGE_KEY = 'otel-hackathon-openrouter-key'
+const BRIEFING_PLACEHOLDER_ID = 'initial-briefing-placeholder'
 
 function App() {
   const [screen, setScreen] = useState('welcome')
@@ -12,9 +13,11 @@ function App() {
   const [messages, setMessages] = useState([])
   const [conversationHistory, setConversationHistory] = useState([])
   const [artifacts, setArtifacts] = useState([])
-  const [memory, setMemory] = useState({ preferences: {}, thresholds: {}, session_log: [] })
+  const [memory, setMemory] = useState({ preferences: {}, thresholds: {}, session_log: [], session_transcripts: [] })
   const [health, setHealth] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [loadingMode, setLoadingMode] = useState('chat')
+  const [briefingPending, setBriefingPending] = useState(false)
   const [error, setError] = useState(null)
 
   useEffect(() => {
@@ -37,12 +40,32 @@ function App() {
   }
 
   async function handleBriefing(key) {
-    setIsLoading(true)
+    setBriefingPending(true)
     setError(null)
+    setMessages((prev) => {
+      if (prev.some((msg) => msg.id === BRIEFING_PLACEHOLDER_ID)) {
+        return prev
+      }
+
+      return [
+        ...prev,
+        {
+          id: BRIEFING_PLACEHOLDER_ID,
+          role: 'assistant',
+          content: '',
+          loading: true,
+          loadingMode: 'briefing',
+        },
+      ]
+    })
 
     try {
       const response = await getBriefing(key, 'greeting')
-      setMessages((prev) => [...prev, { role: 'assistant', content: response.response }])
+      setMessages((prev) => prev.map((msg) => (
+        msg.id === BRIEFING_PLACEHOLDER_ID
+          ? { role: 'assistant', content: response.response }
+          : msg
+      )))
       setConversationHistory(response.history || [])
       updateArtifacts(response.history || [])
 
@@ -50,8 +73,9 @@ function App() {
       setMemory(memResponse.memory || memResponse)
     } catch (err) {
       setError(err.message)
+      setMessages((prev) => prev.filter((msg) => msg.id !== BRIEFING_PLACEHOLDER_ID))
     } finally {
-      setIsLoading(false)
+      setBriefingPending(false)
     }
   }
 
@@ -72,6 +96,7 @@ function App() {
     const userMessage = { role: 'user', content: text }
     setMessages((prev) => [...prev, userMessage])
     setIsLoading(true)
+    setLoadingMode('chat')
     setError(null)
 
     try {
@@ -112,9 +137,12 @@ function App() {
       artifacts={artifacts}
       memory={memory}
       isLoading={isLoading}
+      loadingMode={loadingMode}
+      briefingPending={briefingPending}
       error={error}
       onSendMessage={handleSendMessage}
       onClearArtifacts={() => setArtifacts([])}
+      inputDisabled={isLoading}
     />
   )
 }

@@ -1,7 +1,18 @@
 import ChatPanel from './chat/ChatPanel'
 import InsightsSidebar from './sidebar/InsightsSidebar'
 
-function ChatLayout({ messages, artifacts, memory, isLoading, error, onSendMessage, onClearArtifacts }) {
+function ChatLayout({
+  messages,
+  artifacts,
+  memory,
+  isLoading,
+  loadingMode,
+  error,
+  onSendMessage,
+  onClearArtifacts,
+  inputDisabled,
+  briefingPending,
+}) {
   const memoryCount =
     Object.keys(memory?.preferences || {}).length +
     Object.keys(memory?.thresholds || {}).length +
@@ -26,13 +37,16 @@ function ChatLayout({ messages, artifacts, memory, isLoading, error, onSendMessa
           messages={messages}
           onSendMessage={onSendMessage}
           isLoading={isLoading}
+          loadingMode={loadingMode}
           error={error}
+          inputDisabled={inputDisabled}
         />
         <InsightsSidebar
           artifacts={artifacts}
           onClearArtifacts={onClearArtifacts}
         />
       </div>
+
     </div>
   )
 }
