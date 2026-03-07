@@ -24,7 +24,10 @@
       "Bash(git log --oneline origin/feature/phase2-backend-frontend-skills --not origin/master)",
       "Bash(ls -la /Users/andriybabiy/hackathons/giveago/hiring_hackathon/*.png 2>/dev/null)",
       "Bash(git commit -m \"$\\(cat <<'EOF'\nRedesign frontend with chat-focused layout and insights sidebar\n\n- Replace dashboard grid with chat-first layout \\(ChatLayout + InsightsSidebar\\)\n- Add WelcomeScreen with greeting briefing on first load\n- New chat components: ChatInput, ChatPanel, MessageBubble, SuggestedQuestions, TypingIndicator\n- New sidebar: InsightCard, InsightsSidebar, SidebarSection, ArtifactChart, ArtifactTable\n- Add insightExtractor utility to parse KPI data from tool call history\n- Add suggestedQuestions for follow-up prompts\n- Add useAutoScroll hook for chat message scrolling\n- Remove old dashboard components \\(AlertsPanel, ApiKeyPanel, AppHeader, etc.\\)\n- Update index.css with new chat-focused styling\n- Add framer-motion, lucide-react, react-markdown, recharts dependencies\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
-      "Bash(git add .gitignore backend/.claude/skills/morning-briefing/SKILL.md backend/memory.json .claude/settings.local.json)"
+      "Bash(git add .gitignore backend/.claude/skills/morning-briefing/SKILL.md backend/memory.json .claude/settings.local.json)",
+      "Bash(git commit -m \"$\\(cat <<'EOF'\nUpdate .gitignore, morning briefing skill, and session memory\n\n- Add .playwright-mcp/, otel-hackathon/, node_modules/, *.png to .gitignore\n- Update morning-briefing SKILL.md with greeting mode format guidance\n- Update memory.json with latest session log entries\n- Update Claude local settings\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "mcp__plugin_context7_context7__get-library-docs",
+      "Bash(which vercel 2>/dev/null && vercel --version || echo \"NOT_INSTALLED\")"
     ]
   }
 }

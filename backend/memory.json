@@ -5,32 +5,106 @@
   },
   "session_log": [
     {
-      "date": "2026-03-07 15:19",
-      "insight": "Morning briefing: ## Good morning. Here is your revenue position for today.\n\n---\n\n### \ud83d\udcca On the Books\n\nAcross the 5-month horizon (April\u2013August 2026), you have **876 room nights and $173,559 in total revenue** at a blen"
+      "date": "2026-03-07 17:32",
+      "insight": "Morning briefing: <section class=\"otel-response\">\n  <p style=\"font-size:1.15em; margin-bottom:1.2em;\">Good morning! Here's a quick read on where things stand today.</p>\n\n  <p>The forward book is sitting at <strong>876 "
     },
     {
-      "date": "2026-03-07 15:21",
-      "insight": "Q: What changed in the last 7 days? | A: Here's what moved in the last 7 days. Net position is strongly positive, but there are two things worth flagging.\n\n---\n\n### \ud83d\udcc8 Pickup \u2014 Strong Week\n\n**"
+      "date": "2026-03-07 17:32",
+      "insight": "Q: what is going wrong in my hotel | A: <section class=\"otel-response\">\n  <div class=\"otel-response__eyebrow\">Diagnostic \u2014 Full Forward Book</div>\n  <h2 class=\"otel-response__title\">Four thi"
     },
     {
-      "date": "2026-03-07 15:23",
-      "insight": "Q: Are we too dependent on OTA? | A: Already have the concentration data from this session \u2014 no need to re-pull. Here's the assessment using your custom OTA target of **25%**.\n\n---\n\n**CON"
+      "date": "2026-03-07 17:34",
+      "insight": "Q: what are the projections for next month | A: <section class=\"otel-response\">\n  <div class=\"otel-response__eyebrow\">Directional Estimate \u2014 April 2026</div>\n  <h2 class=\"otel-response__title\">Next "
     },
     {
-      "date": "2026-03-07 16:09",
-      "insight": "Morning briefing: Good morning! Here's your quick snapshot to start the day. \u2600\ufe0f\n\nYou're sitting on **876 room nights and $173,559 in revenue** across the April\u2013August horizon at a blended ADR of **$185.65** \u2014 a solid b"
+      "date": "2026-03-07 17:38",
+      "insight": "Q: my sales are down what do I do? | A: <section class=\"otel-response\">\n  <div class=\"otel-response__eyebrow\">Sales Recovery Plan \u2014 Full Forward Book</div>\n  <h2 class=\"otel-response__title\""
     },
     {
-      "date": "2026-03-07 16:13",
-      "insight": "Q: what is in the hotel | A: Great question \u2014 let me think about what I can actually help with here! \ud83d\ude0a\n\nI'm **Otel AI**, your Revenue Intelligence assistant. I have access to your"
+      "date": "2026-03-07 17:42",
+      "insight": "Morning briefing: <section class=\"otel-response\">\n  <p style=\"font-size: 1.05em;\">Good morning! Here's a quick read on where things stand today.</p>\n\n  <p>The forward book is sitting at <strong>876 room nights and $173"
     },
     {
-      "date": "2026-03-07 16:13",
-      "insight": "Q: what are the best booking types | A: Here's how your booking types stack up across the April\u2013August horizon, ranked by what they're actually delivering \ud83d\udc47\n\n---\n\n**\ud83e\udd47 Conference / Incentive "
+      "date": "2026-03-07 17:42",
+      "insight": "Q: my bookings are down what should I do | A: <section class=\"otel-response\">\n  <div class=\"otel-response__eyebrow\">Booking Recovery Plan</div>\n  <h2 class=\"otel-response__title\">The problem isn't"
     },
     {
-      "date": "2026-03-07 16:14",
-      "insight": "Morning briefing: Good morning! \u2600\ufe0f Hope you're ready for a good one \u2014 here's what's happening across the hotel.\n\nThe forward book is sitting at **876 room nights and $173,559 in revenue** at a blended ADR of **$185.65*"
+      "date": "2026-03-07 17:46",
+      "insight": "Morning briefing: <section class=\"otel-response\">\n  <p style=\"font-size: 1.1em;\">Good morning! Here's a quick read on where things stand heading into today.</p>\n\n  <p>The forward book is holding at <strong>876 room nig"
+    },
+    {
+      "date": "2026-03-07 17:47",
+      "insight": "Morning briefing: <section class=\"otel-response\">\n  <p style=\"font-size: 1.1em;\">Good morning! Here's where things stand as you head into today.</p>\n\n  <p>The forward book is unchanged at <strong>876 room nights and $1"
+    },
+    {
+      "date": "2026-03-07 17:48",
+      "insight": "Q: sales are down what do i do? | A: <section class=\"otel-response\">\n  <div class=\"otel-response__eyebrow\">Sales Recovery Diagnosis</div>\n  <h2 class=\"otel-response__title\">The volume isn"
+    },
+    {
+      "date": "2026-03-07 17:49",
+      "insight": "Q: What does June's segment mix look like?\" | A: <section class=\"otel-response\">\n  <div class=\"otel-response__eyebrow\">June 2026 \u2014 Segment Mix</div>\n  <h2 class=\"otel-response__title\">June has an OTA"
+    }
+  ],
+  "session_transcripts": [
+    {
+      "date": "2026-03-07 17:26",
+      "user": "morning briefing",
+      "assistant": "<section class=\"otel-response\"> <p style=\"font-size:1.15em; margin-bottom:1em;\">Good morning! Here's where things stand as you head into the day.</p> <p>The forward book is holding steady at <strong>876 room nights and $173,559 in revenue</strong> at a <strong>$185.65 ADR</strong>. July is still doing the heavy lifting \u2014 569 room nights and $114,089 on its own \u2014 but April, May, and June are all si"
+    },
+    {
+      "date": "2026-03-07 17:27",
+      "user": "what is going wrong in my hotel",
+      "assistant": "<section class=\"otel-response\"> <div class=\"otel-response__eyebrow\">Diagnostic \u2014 Full Forward Book</div> <h2 class=\"otel-response__title\">Three things are going wrong \u2014 and one of them is structural</h2> <p class=\"otel-response__lead\">Your headline numbers look passable (876 room nights, $173,559 revenue, $185.65 ADR), but underneath there are three real problems worth your attention right now.</p"
+    },
+    {
+      "date": "2026-03-07 17:32",
+      "user": "morning briefing",
+      "assistant": "<section class=\"otel-response\"> <p style=\"font-size:1.15em; margin-bottom:1.2em;\">Good morning! Here's a quick read on where things stand today.</p> <p>The forward book is sitting at <strong>876 room nights and $173,559 in revenue</strong> at a <strong>$185.65 ADR</strong> \u2014 broadly in line with where you were last session. July remains the anchor month at 569 room nights and $114,089, while April"
+    },
+    {
+      "date": "2026-03-07 17:32",
+      "user": "what is going wrong in my hotel",
+      "assistant": "<section class=\"otel-response\"> <div class=\"otel-response__eyebrow\">Diagnostic \u2014 Full Forward Book</div> <h2 class=\"otel-response__title\">Four things are going wrong \u2014 and one of them is structural</h2> <p class=\"otel-response__lead\">Your headline numbers look passable \u2014 876 room nights, $173,559, $185.65 ADR \u2014 but underneath there are four real problems that deserve your attention right now.</p> "
+    },
+    {
+      "date": "2026-03-07 17:34",
+      "user": "what are the projections for next month",
+      "assistant": "<section class=\"otel-response\"> <div class=\"otel-response__eyebrow\">Directional Estimate \u2014 April 2026</div> <h2 class=\"otel-response__title\">Next month is under-booked and OTA-heavy \u2014 expect pressure unless pace improves</h2> <p class=\"otel-response__lead\" style=\"font-style: italic; color: #666; font-size: 0.92em;\">This is a directional estimate based on current on-the-books data and recent bookin"
+    },
+    {
+      "date": "2026-03-07 17:38",
+      "user": "my sales are down what do I do?",
+      "assistant": "<section class=\"otel-response\"> <div class=\"otel-response__eyebrow\">Sales Recovery Plan \u2014 Full Forward Book</div> <h2 class=\"otel-response__title\">Your sales aren't broken \u2014 but three specific problems are holding you back</h2> <p class=\"otel-response__lead\">The data tells a clear story. You're not in freefall \u2014 801 room nights were picked up in the last 30 days at $158,819. But the <strong>distri"
+    },
+    {
+      "date": "2026-03-07 17:42",
+      "user": "morning briefing",
+      "assistant": "<section class=\"otel-response\"> <p style=\"font-size: 1.05em;\">Good morning! Here's a quick read on where things stand today.</p> <p>The forward book is sitting at <strong>876 room nights and $173,559 in revenue</strong> at a blended ADR of $185.65. The story is almost entirely July \u2014 it accounts for 569 of those room nights and $114K of revenue, largely driven by group blocks. Everything else \u2014 Ap"
+    },
+    {
+      "date": "2026-03-07 17:42",
+      "user": "my bookings are down what should I do",
+      "assistant": "<section class=\"otel-response\"> <div class=\"otel-response__eyebrow\">Booking Recovery Plan</div> <h2 class=\"otel-response__title\">The problem isn't volume \u2014 it's where your bookings are coming from, and three months are dangerously thin.</h2> <p class=\"otel-response__lead\">You picked up 801 room nights and $158,819 in the last 30 days \u2014 that's actually a decent pace. But strip out July's group bloc"
+    },
+    {
+      "date": "2026-03-07 17:46",
+      "user": "morning briefing",
+      "assistant": "<section class=\"otel-response\"> <p style=\"font-size: 1.1em;\">Good morning! Here's a quick read on where things stand heading into today.</p> <p>The forward book is holding at <strong>876 room nights and $173,559 in revenue</strong> at a blended ADR of $185.65. July remains the heavyweight \u2014 569 room nights and $114K, heavily group-driven \u2014 while April through June are comparatively thin and need a"
+    },
+    {
+      "date": "2026-03-07 17:47",
+      "user": "morning briefing",
+      "assistant": "<section class=\"otel-response\"> <p style=\"font-size: 1.1em;\">Good morning! Here's where things stand as you head into today.</p> <p>The forward book is unchanged at <strong>876 room nights and $173,559 in revenue</strong> at a blended ADR of $185.65 \u2014 but the story is still very much a July tale. That one month holds 569 room nights and $114K, almost entirely group-driven. April through June remai"
+    },
+    {
+      "date": "2026-03-07 17:48",
+      "user": "sales are down what do i do?",
+      "assistant": "<section class=\"otel-response\"> <div class=\"otel-response__eyebrow\">Sales Recovery Diagnosis</div> <h2 class=\"otel-response__title\">The volume isn't the core problem \u2014 the mix and the gaps are.</h2> <p class=\"otel-response__lead\">You picked up 801 room nights and $158,819 in the last 30 days, which is actually a reasonable pace. But strip out the July group blocks and the transient picture is thin"
+    },
+    {
+      "date": "2026-03-07 17:49",
+      "user": "What does June's segment mix look like?\"",
+      "assistant": "<section class=\"otel-response\"> <div class=\"otel-response__eyebrow\">June 2026 \u2014 Segment Mix</div> <h2 class=\"otel-response__title\">June has an OTA dependency problem.</h2> <p class=\"otel-response__lead\">With only 86 room nights on the books, half of June is sitting on OTA \u2014 exactly double your 25% custom target. There are no group blocks at all. This month is running purely on transient retail, an"
     }
   ]
 }
