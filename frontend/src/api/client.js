@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
+const BASE_URL = '/api'
 
 async function request(path, options = {}) {
   const response = await fetch(`${BASE_URL}${path}`, {
@@ -31,10 +31,6 @@ async function request(path, options = {}) {
   return response.json()
 }
 
-export function getApiBaseUrl() {
-  return BASE_URL
-}
-
 export function getHealth() {
   return request('/health', { method: 'GET' })
 }
@@ -47,10 +43,10 @@ export function clearMemory() {
   return request('/memory', { method: 'DELETE' })
 }
 
-export function getBriefing(apiKey) {
+export function getBriefing(apiKey, mode = 'full') {
   return request('/briefing', {
     method: 'POST',
-    body: JSON.stringify({ api_key: apiKey }),
+    body: JSON.stringify({ api_key: apiKey || undefined, mode }),
   })
 }
 
@@ -58,7 +54,7 @@ export function sendChatMessage({ apiKey, message, history }) {
   return request('/chat', {
     method: 'POST',
     body: JSON.stringify({
-      api_key: apiKey,
+      api_key: apiKey || undefined,
       message,
       history,
     }),
