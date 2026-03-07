@@ -118,30 +118,44 @@ So this project uses the **SKILL.md content pattern** rather than native Claude 
 
 ```
 backend/.claude/skills/
-├── revenue-analysis/
-│   └── SKILL.md    ← metric definitions, SQL rules, grain rules, guardrails
-└── morning-briefing/
-    └── SKILL.md    ← briefing structure, what to surface, output format
+├── concentration-risk/
+│   └── SKILL.md    ← OTA dependency, segment diversification, risk thresholds
+├── morning-briefing/
+│   └── SKILL.md    ← briefing structure, what to surface, output format
+├── prediction-guidance/
+│   └── SKILL.md    ← directional estimates, date assumptions, fact vs inference
+├── response-presentation/
+│   └── SKILL.md    ← HTML formatting, semantic classes, output polish
+└── revenue-analysis/
+    └── SKILL.md    ← metric definitions, SQL rules, grain rules, guardrails
 ```
 
 **`revenue-analysis/SKILL.md`** handles the hotel math: table grain, canonical metric definitions, cancellation defaults, date-field rules, and tool-picking guidance.
 
 **`morning-briefing/SKILL.md`** handles the briefing behavior: when to run, which tools to call, how to structure the answer, and how to land on one clear action.
 
+**`concentration-risk/SKILL.md`** handles OTA dependency analysis, segment diversification, and risk thresholds. Triggered when the GM asks about OTA reliance or concentration.
+
+**`prediction-guidance/SKILL.md`** handles questions about future performance, relative dates, and expected outcomes. Ensures the agent distinguishes observed data from directional estimates.
+
+**`response-presentation/SKILL.md`** defines the HTML formatting conventions, semantic CSS classes (`otel-response*`, `otel-metric-card*`), and output polish rules.
+
 ### How agent.py loads them
 
 ```python
 from pathlib import Path
 
-def build_system_prompt() -> str:
+def _load_skills() -> str:
     skills_dir = Path(__file__).parent / ".claude" / "skills"
-    skill_content = []
+    parts = []
     for skill_file in sorted(skills_dir.glob("*/SKILL.md")):
-        skill_content.append(skill_file.read_text())
-    return "\n\n---\n\n".join(skill_content)
+        parts.append(skill_file.read_text(encoding="utf-8"))
+    return "\n\n---\n\n".join(parts)
+
+SKILL_CONTEXT = _load_skills()  # loaded once at import time
 ```
 
-Claude gets the domain logic at startup from structured SKILL.md files rather than one long hand-written prompt.
+All 5 SKILL.md files are loaded at startup and injected into the system prompt. `_build_system_prompt(active_skill)` then appends skill-specific instructions and GM memory context for each request.
 
 ---
 
@@ -151,23 +165,22 @@ Claude gets the domain logic at startup from structured SKILL.md files rather th
 ┌──────────────────────────────────────────────────────┐
 │             REACT FRONTEND (Vite)                    │
 │                                                      │
-│  Stitch-inspired dashboard shell                     │
-│  API key panel + backend health                      │
-│  Morning briefing panel from /briefing               │
-│  Follow-up chat panel backed by /chat                │
-│  KPI cards + monthly runway parsed from tool output  │
-│  Memory panel backed by /memory                      │
+│  Chat-focused layout: ChatLayout + InsightsSidebar   │
+│  WelcomeScreen with API key + suggested questions    │
+│  MessageBubble with HTML rendering + Markdown        │
+│  InsightsSidebar: KPI cards, charts, tables          │
+│  SSE streaming via /chat/stream endpoint             │
 └───────────────────────┬──────────────────────────────┘
-                        │ HTTP / JSON
+                        │ HTTP / JSON / SSE
                         │
 ┌───────────────────────▼──────────────────────────────┐
 │             FASTAPI BACKEND (api.py)                 │
 │                                                      │
-│  POST /briefing   → morning briefing                 │
-│  POST /chat       → GM question answer               │
-│  POST /chat/stream→ streamed GM answer               │
-│  GET  /health     → liveness check                   │
-│  GET/DELETE /memory → view/reset session memory      │
+│  POST /briefing      → morning or greeting briefing  │
+│  POST /chat          → GM question answer            │
+│  POST /chat/stream   → SSE streamed GM answer        │
+│  GET  /health        → liveness check                │
+│  GET/DELETE /memory   → view/reset session memory    │
 └───────────────────────┬──────────────────────────────┘
                         │
 ┌───────────────────────▼──────────────────────────────┐
@@ -175,27 +188,32 @@ Claude gets the domain logic at startup from structured SKILL.md files rather th
 │                                                      │
 │  Model: anthropic/claude-sonnet-4-6 (default)        │
 │  SDK: openai → OpenRouter (user's API key)           │
-│  System prompt: loaded from SKILL.md files           │
+│  System prompt: loaded from 5 SKILL.md files         │
 │                                                      │
 │  Flow: question → lightweight skill routing          │
-│                  → Morning Briefing or Revenue       │
-│                  → Claude selects tools              │
-│                  → synthesises final answer          │
+│        → Morning Briefing / Greeting / Concentration │
+│          Risk / Prediction Guidance / Revenue        │
+│        → Claude selects tools                        │
+│        → HTML normalization → final answer           │
 └──────────┬────────────────────────────┬──────────────┘
            │                            │
 ┌──────────▼──────────┐   ┌─────────────▼─────────────┐
-│   tools.py          │   │   db.py                   │
+│   tools.py (9)      │   │   db.py                   │
 │                     │   │                           │
-│   get_otb_summary   │   │   run_sql(query) → rows   │
-│   get_pickup        │   │   Connection to postgres  │
-│   get_cancellations │   │                           │
-│   get_segment_mix   │   └───────────────────────────┘
+│   get_otb_summary   │   │   ThreadedConnectionPool  │
+│   get_pickup        │   │   (2-10 connections)      │
+│   get_cancellations │   │   run_sql(query) → rows   │
+│   get_segment_mix   │   │                           │
+│   get_room_type     │   └───────────────────────────┘
+│   get_company       │
+│   get_conc_risk     │
+│   remember_pref     │
 │   run_sql (escape)  │
 └──────────┬──────────┘
            │
 ┌──────────▼──────────────────────────────────────────┐
 │   POSTGRESQL 16 (Docker)                            │
-│   host: localhost:5432                              │
+│   host: localhost:5433                              │
 │   db: hotel_hackathon  user/pass: hackathon         │
 └─────────────────────────────────────────────────────┘
 ```
@@ -210,17 +228,22 @@ Claude gets the domain logic at startup from structured SKILL.md files rather th
 | LLM gateway | OpenRouter (OpenAI-compatible API) | User brings their own key — no demo-day cost; model flexibility |
 | AI SDK | `openai` (pointed at OpenRouter base URL) | OpenRouter is OpenAI-compatible; tool-calling works natively |
 | Default model | `anthropic/claude-sonnet-4-6` via OpenRouter | Same model, user can override to any OpenRouter model |
-| DB driver | `psycopg2-binary` | Simple, synchronous, battle-tested |
+| DB driver | `psycopg2-binary` with `ThreadedConnectionPool` | Connection pooling (2-10), lazy init |
+| SSE streaming | `sse-starlette` | Word-by-word streaming for chat responses |
 | Backend API | FastAPI + uvicorn | Async, minimal boilerplate, auto-docs |
-| Frontend | React + Vite | Fast scaffold, component-based, looks real in demo |
-| UI design | `ui-ux-pro-max` skill | Production-quality design, not generic AI output |
+| Frontend | React 19 + Vite 7 | Fast scaffold, component-based, looks real in demo |
+| Frontend libs | framer-motion, lucide-react, recharts, react-markdown | Animations, icons, charts, markdown rendering |
+| UI design | Chat-focused layout with insights sidebar | Conversational UX with contextual data panels |
 
 ### Frontend implementation notes
 
-- The implemented frontend is based on the Google Stitch export, but translated into reusable React components rather than shipping the raw static HTML.
-- The live frontend experience is grounded in real backend contracts: `GET /health`, `POST /briefing`, `POST /chat`, `GET /memory`, and `DELETE /memory`.
-- KPI cards and the monthly runway table are populated by parsing the structured tool outputs that come back inside the stored briefing `history` array.
-- The right-hand dashboard modules are intentionally honest about current backend scope: the core live experience is briefing + follow-up chat, with supporting dashboard visuals derived from that same live result set.
+- The frontend uses a **chat-focused layout** (`ChatLayout.jsx`) with an `InsightsSidebar` that surfaces KPI cards, charts, and tables contextually as the conversation progresses.
+- `WelcomeScreen.jsx` handles the initial state: API key entry, backend health status, and suggested starter questions.
+- Chat messages render HTML responses via `MessageBubble.jsx` (agent HTML output) and `react-markdown` for plain text fallback.
+- `insightExtractor.js` parses structured tool call results from the conversation `history` array to populate the sidebar's KPI cards, revenue chart (`ArtifactChart.jsx` via Recharts), and data tables (`ArtifactTable.jsx`).
+- `suggestedQuestions.js` provides contextual follow-up question prompts that adapt to the current conversation state.
+- `useAutoScroll.js` hook handles automatic chat scroll behavior.
+- The live frontend experience is grounded in real backend contracts: `GET /health`, `POST /briefing`, `POST /chat`, `POST /chat/stream` (SSE), `GET /memory`, and `DELETE /memory`.
 
 ### OpenRouter setup
 
@@ -282,12 +305,13 @@ psycopg2-binary
 fastapi
 uvicorn
 python-dotenv
+sse-starlette
 ```
 
 ### frontend bootstrap
 ```bash
 npm create vite@latest frontend -- --template react
-cd frontend && npm install axios
+cd frontend && npm install framer-motion lucide-react react-markdown recharts remark-gfm
 ```
 
 ---
@@ -295,46 +319,64 @@ cd frontend && npm install axios
 ## 10. File Structure
 
 ```
-D:/Otel/
+hiring_hackathon/
 ├── SOURCE_OF_TRUTH.md
-├── otel-hackathon/              ← cloned repo, do not modify
+├── .gitignore
+├── otel-hackathon/              ← cloned repo, do not modify (gitignored)
 │   ├── docker-compose.yml
 │   ├── schema.sql
 │   └── seed.sql
 ├── backend/
 │   ├── .claude/
 │   │   └── skills/
-│   │       ├── revenue-analysis/
-│   │       │   └── SKILL.md     ← domain rules, metric definitions, guardrails
-│   │       └── morning-briefing/
-│   │           └── SKILL.md     ← briefing process, format, output rules
-│   ├── .env                     ← OPENROUTER_API_KEY=...
+│   │       ├── concentration-risk/
+│   │       │   └── SKILL.md     ← OTA dependency, diversification, risk thresholds
+│   │       ├── morning-briefing/
+│   │       │   └── SKILL.md     ← briefing process, format, output rules
+│   │       ├── prediction-guidance/
+│   │       │   └── SKILL.md     ← directional estimates, date assumptions
+│   │       ├── response-presentation/
+│   │       │   └── SKILL.md     ← HTML formatting, semantic classes
+│   │       └── revenue-analysis/
+│   │           └── SKILL.md     ← domain rules, metric definitions, guardrails
+│   ├── .env                     ← OPENROUTER_API_KEY + DB_URL (gitignored)
 │   ├── requirements.txt
-│   ├── db.py                    ← DB connection + run_sql() utility
+│   ├── memory.json              ← persistent memory store (auto-generated)
+│   ├── db.py                    ← ThreadedConnectionPool (2-10) + run_sql()
 │   ├── memory.py                ← MemoryStore: preferences, thresholds, session log (JSON)
-│   ├── tools.py                 ← OpenAI-format tool defs + handlers with pre-validated SQL
-│   ├── agent.py                 ← SKILL.md → system prompt + memory context → tool-use loop
-│   └── api.py                   ← FastAPI: /briefing /chat /health /memory
+│   ├── tools.py                 ← 9 OpenAI-format tool defs + handlers with pre-validated SQL
+│   ├── agent.py                 ← 5 SKILL.md → system prompt + memory context → tool-use loop
+│   └── api.py                   ← FastAPI: /briefing /chat /chat/stream /health /memory
 └── frontend/
     ├── package.json
     ├── package-lock.json
     └── src/
-        ├── App.jsx
-        ├── index.css            ← Stitch-inspired theme + layout system
+        ├── main.jsx
+        ├── App.jsx              ← main app shell, state management
+        ├── index.css            ← theme + layout system
         ├── api/
-        │   └── client.js        ← fetch helpers for /health /briefing /chat /memory
+        │   └── client.js        ← fetch helpers for all 6 endpoints
+        ├── hooks/
+        │   └── useAutoScroll.js ← chat auto-scroll behavior
         ├── utils/
-        │   └── formatters.js    ← money/percent/date formatting + briefing parsing
+        │   ├── formatters.js    ← money/percent/date formatting
+        │   ├── insightExtractor.js ← parse tool call results → KPI data
+        │   └── suggestedQuestions.js ← contextual follow-up prompts
         └── components/
-            ├── AppHeader.jsx
-            ├── ApiKeyPanel.jsx
-            ├── InsightCard.jsx
-            ├── BriefingPanel.jsx
-            ├── AlertsPanel.jsx
-            ├── GroupPerformanceTable.jsx
-            ├── ChurnVelocityChart.jsx
-            ├── RoomTypeMatrix.jsx
-            └── ChatPanel.jsx
+            ├── ChatLayout.jsx   ← main two-panel layout (chat + sidebar)
+            ├── WelcomeScreen.jsx ← API key entry, health status, starter questions
+            ├── chat/
+            │   ├── ChatPanel.jsx       ← message list + input area
+            │   ├── ChatInput.jsx       ← text input + send button
+            │   ├── MessageBubble.jsx   ← HTML/markdown message rendering
+            │   ├── SuggestedQuestions.jsx ← follow-up question chips
+            │   └── TypingIndicator.jsx ← streaming indicator
+            └── sidebar/
+                ├── InsightsSidebar.jsx ← collapsible insights panel
+                ├── InsightCard.jsx     ← KPI metric cards
+                ├── ArtifactChart.jsx   ← Recharts revenue visualization
+                ├── ArtifactTable.jsx   ← data tables from tool output
+                └── SidebarSection.jsx  ← collapsible section wrapper
 ```
 
 ---
@@ -354,11 +396,16 @@ A separate classifier for every possible intent adds another failure point. We o
 
 ### What we do route explicitly
 
-`agent.py` now distinguishes between:
+`agent.py` classifies each user message into one of five skill routes:
 - **Morning Briefing** — overview-style prompts where the briefing workflow should be emphasized
-- **Revenue Analysis** — normal GM questions where the smallest relevant tool set should be used
+- **Greeting Briefing** — warm, conversational opening (~200 words) with all 5 tools, no formal headers
+- **Concentration Risk** — OTA dependency, segment diversification, concentration analysis
+- **Prediction Guidance** — future performance questions, directional estimates with clear date assumptions
+- **Revenue Analysis** (default) — normal GM questions where the smallest relevant tool set should be used
 
-That keeps the skills more than advisory without building a brittle intent engine.
+Classification uses keyword matching in `_classify_skill()` — lightweight and deterministic. The `/briefing` endpoint also supports `mode: "greeting"` for a conversational variant.
+
+Additionally, agent responses are normalized to semantic HTML via `_normalize_final_response()` which wraps plain-text responses in `otel-response*` classes for consistent frontend rendering.
 
 ### What we use: OpenAI-format tool-calling via OpenRouter
 
@@ -421,6 +468,15 @@ def _get_otb_summary(months_ahead: int = 5) -> dict:
     ...
 ```
 
+### Natural language stay_month parsing
+
+Tools that accept a `stay_month` parameter (get_pickup, get_cancellations) use `_normalize_stay_month()` which handles multiple input formats:
+- ISO format: `"2026-07"`
+- Full name: `"July 2026"`, `"July"`
+- Abbreviation: `"Jul"`, `"Jul 2026"`
+
+This is implemented via `MONTH_NAME_TO_NUMBER` dict and regex parsing in `tools.py`.
+
 ### Morning briefing pattern
 
 The morning briefing asks Claude for a complete snapshot in one pass:
@@ -444,33 +500,31 @@ That keeps the briefing grounded in live data and still gives the GM one clear r
 
 ### Agent tool loop (`agent.py`)
 ```python
-# Standard OpenAI-compatible tool-use loop
-while True:
-    response = client.chat.completions.create(
-        model=MODEL,
-        messages=[{"role": "system", "content": system_prompt}] + messages,
-        tools=TOOLS,
-    )
+def _run_tool_loop(client: OpenAI, messages: list, system_prompt: str) -> str:
+    """Run the OpenAI tool-use loop until end_turn. Returns final text."""
+    while True:
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=[{"role": "system", "content": system_prompt}] + messages,
+            tools=TOOLS,
+            max_tokens=4096,
+        )
 
-    choice = response.choices[0]
-    if choice.finish_reason == "tool_calls":
-        assistant_message = choice.message
-        for tc in assistant_message.tool_calls:
-            result = handle_tool(tc.function.name, json.loads(tc.function.arguments))
-            messages.append({
-                "role": "tool",
-                "tool_call_id": tc.id,
-                "content": result,
-            })
-    else:
-        return choice.message.content
+        choice = response.choices[0]
+        if choice.finish_reason == "tool_calls":
+            # Append assistant turn with tool_calls, then execute each tool
+            for tc in choice.message.tool_calls:
+                result = handle_tool(tc.function.name, json.loads(tc.function.arguments))
+                messages.append({"role": "tool", "tool_call_id": tc.id, "content": result})
+        else:
+            return _normalize_final_response(choice.message.content or "")
 ```
 
 ---
 
 ## 12. The Data
 
-**Connection:** `postgresql://hackathon:hackathon@localhost:5432/hotel_hackathon`
+**Connection:** `postgresql://hackathon:hackathon@localhost:5433/hotel_hackathon`
 
 ### Table grain — the most important thing
 
@@ -601,28 +655,31 @@ Example:
 
 ### Phase 1 — Backend (build and test fully before touching frontend)
 
-1. `db.py` — postgres connection, `run_sql()` function, verify data ✅ done
+1. `db.py` — postgres connection pooling, `run_sql()` function, verify data ✅ done
 2. `revenue-analysis/SKILL.md` — metric definitions, grain rules, guardrails ✅ done
 3. `morning-briefing/SKILL.md` — briefing process, parallel tools, output format ✅ done
-4. `tools.py` — 5 OpenAI-format tool defs + pre-validated SQL handlers ✅ done
-5. `memory.py` — MemoryStore: preferences, thresholds, session log
-6. `agent.py` — SKILL.md + memory → system prompt → tool-use loop + conversation history ✅ done (needs memory wired in)
-7. `api.py` — FastAPI: /briefing /chat /health + /memory endpoints ✅ done (needs memory + messages[])
-8. Test all 10 README example questions via terminal / curl
+4. `concentration-risk/SKILL.md` — OTA dependency, diversification, risk thresholds ✅ done
+5. `prediction-guidance/SKILL.md` — directional estimates, date assumptions ✅ done
+6. `response-presentation/SKILL.md` — HTML formatting, semantic classes ✅ done
+7. `tools.py` — 9 OpenAI-format tool defs + pre-validated SQL handlers ✅ done
+8. `memory.py` — MemoryStore: preferences, thresholds, session log ✅ done
+9. `agent.py` — 5 SKILL.md + memory → system prompt → 5-route skill classification → tool-use loop ✅ done
+10. `api.py` — FastAPI: /briefing /chat /chat/stream /health /memory endpoints ✅ done
+11. Test all 10 README example questions via terminal / curl ✅ done (Playwright)
 
 ### Phase 2 — Frontend (only after backend is solid)
 
-6. Scaffold with Vite React ✅ done
-7. Implement Stitch-inspired dashboard shell in reusable React components ✅ done
-8. `ApiKeyPanel.jsx` + `AppHeader.jsx` — API key input, backend health, session framing ✅ done
-9. `BriefingPanel.jsx` + `ChatPanel.jsx` — `/briefing` and `/chat` integration with history state ✅ done
-10. `InsightCard.jsx` + `GroupPerformanceTable.jsx` + `ChurnVelocityChart.jsx` — visualise parsed tool output from briefing history ✅ done
-11. `RoomTypeMatrix.jsx` — surfaces stored preferences, thresholds, and memory reset ✅ done
+12. Scaffold with Vite React ✅ done
+13. Implement chat-focused layout: `ChatLayout.jsx` + `InsightsSidebar` ✅ done
+14. `WelcomeScreen.jsx` — API key entry, backend health, starter questions ✅ done
+15. `ChatPanel.jsx` + `MessageBubble.jsx` — chat UI with HTML rendering ✅ done
+16. `InsightCard.jsx` + `ArtifactChart.jsx` + `ArtifactTable.jsx` — parsed tool output visualization ✅ done
+17. `insightExtractor.js` + `suggestedQuestions.js` — data extraction + follow-up prompts ✅ done
 
 ### Phase 3 — Polish
 
-11. End-to-end smoke test with all 10 questions
-12. Run the 3-minute demo script once before presenting
+18. End-to-end smoke test with Playwright ✅ done
+19. Run the 3-minute demo script once before presenting
 
 ---
 
