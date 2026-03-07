@@ -104,7 +104,10 @@ SUM(number_of_spaces) FILTER (WHERE market_code = 'OTA') * 100.0
 | Pickup, what changed recently, new bookings | `get_pickup` |
 | Cancellations, lost business | `get_cancellations` |
 | OTA dependency, segment mix, group share, corporate % | `get_segment_mix` |
-| Room type ADR, company revenue, concentration, custom | `run_sql` |
+| Room type ADR, room mix, room type comparison | `get_room_type_analysis` |
+| Company revenue, corporate accounts, key accounts | `get_company_analysis` |
+| OTA risk, concentration, dependency assessment | `get_concentration_risk` |
+| Truly ad-hoc questions not covered by any dedicated tool | `run_sql` |
 
 ## Guardrails
 - Always state whether cancelled reservations are included or excluded

@@ -6,11 +6,12 @@ Activate on app startup (automatic) or when the GM asks for:
 - "give me an overview", "what's the situation"
 
 ## Process
-Run all four tools in a single turn (parallel):
+Run all five tools in a single turn (parallel):
 1. `get_otb_summary(months_ahead=5)` — full revenue position
 2. `get_pickup(days=7)` — what changed in the last week
 3. `get_cancellations(days=7)` — recent cancellations
 4. `get_segment_mix()` — current business mix
+5. `get_concentration_risk()` — dependency and concentration risk summary
 
 Then synthesise into a single structured briefing.
 
