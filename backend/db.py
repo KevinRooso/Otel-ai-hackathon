@@ -1,4 +1,6 @@
 import os
+from typing import Any
+
 import psycopg2
 import psycopg2.extras
 from psycopg2 import pool
@@ -28,7 +30,7 @@ def release_connection(conn):
     _get_pool().putconn(conn)
 
 
-def run_sql(query: str, params: tuple = None) -> list[dict]:
+def run_sql(query: str, params: Any = None) -> list[dict]:
     """Execute a SQL query and return rows as a list of dicts."""
     conn = get_connection()
     try:

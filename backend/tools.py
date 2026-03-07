@@ -4,6 +4,33 @@ from decimal import Decimal
 from db import run_sql
 from memory import memory
 
+MONTH_NAME_TO_NUMBER = {
+    "january": 1,
+    "february": 2,
+    "march": 3,
+    "april": 4,
+    "may": 5,
+    "june": 6,
+    "july": 7,
+    "august": 8,
+    "september": 9,
+    "october": 10,
+    "november": 11,
+    "december": 12,
+    "jan": 1,
+    "feb": 2,
+    "mar": 3,
+    "apr": 4,
+    "jun": 6,
+    "jul": 7,
+    "aug": 8,
+    "sep": 9,
+    "sept": 9,
+    "oct": 10,
+    "nov": 11,
+    "dec": 12,
+}
+
 # ---------------------------------------------------------------------------
 # OpenAI function-calling tool definitions
 # ---------------------------------------------------------------------------
@@ -221,6 +248,53 @@ def _serialize(rows: list[dict]) -> list[dict]:
     return out
 
 
+def _normalize_stay_month(stay_month: str | None) -> str | None:
+    if stay_month is None:
+        return None
+
+    value = stay_month.strip()
+    if not value:
+        return None
+
+    iso_match = re.fullmatch(r"(\d{4})-(\d{1,2})", value)
+    if iso_match:
+        year = int(iso_match.group(1))
+        month = int(iso_match.group(2))
+        if 1 <= month <= 12:
+            return f"{year:04d}-{month:02d}"
+        raise ValueError("Invalid stay_month. Expected month between 1 and 12.")
+
+    month_year_match = re.fullmatch(r"([A-Za-z]+)\s+(\d{4})", value)
+    if month_year_match:
+        month_name = month_year_match.group(1).lower()
+        year = int(month_year_match.group(2))
+        month = MONTH_NAME_TO_NUMBER.get(month_name)
+        if month:
+            return f"{year:04d}-{month:02d}"
+        raise ValueError("Invalid stay_month. Use YYYY-MM or a month name like 'July 2026'.")
+
+    month_only_match = re.fullmatch(r"[A-Za-z]+", value)
+    if month_only_match:
+        month = MONTH_NAME_TO_NUMBER.get(value.lower())
+        if not month:
+            raise ValueError("Invalid stay_month. Use YYYY-MM or a month name like 'July'.")
+
+        rows = run_sql(
+            """
+            SELECT TO_CHAR(MIN(stay_date), 'YYYY') AS year
+            FROM reservations_hackathon
+            WHERE EXTRACT(MONTH FROM stay_date) = %(month)s
+            """,
+            {"month": month},
+        )
+        year = rows[0]["year"] if rows and rows[0].get("year") else None
+        if not year:
+            raise ValueError(f"No data exists for month '{value}'.")
+        return f"{int(year):04d}-{month:02d}"
+
+    raise ValueError("Invalid stay_month. Use YYYY-MM or a month name like 'July 2026'.")
+
+
 def _validate_sql(query: str) -> str | None:
     """Return an error message if the query is not a safe SELECT, else None."""
     normalized = query.strip().upper()
@@ -281,7 +355,8 @@ def _get_otb_summary(months_ahead: int = 5) -> dict:
     }
 
 
-def _get_pickup(days: int = 7, stay_month: str = None) -> dict:
+def _get_pickup(days: int = 7, stay_month: str | None = None) -> dict:
+    stay_month = _normalize_stay_month(stay_month)
     base = """
         SELECT
             COUNT(DISTINCT reservation_id)                                        AS new_reservations,
@@ -293,7 +368,7 @@ def _get_pickup(days: int = 7, stay_month: str = None) -> dict:
           AND stay_date >= CURRENT_DATE
           AND create_datetime >= NOW() - (%(days)s || ' days')::interval
     """
-    params = {"days": days}
+    params: dict[str, object] = {"days": days}
     if stay_month:
         base += " AND TO_CHAR(stay_date, 'YYYY-MM') = %(stay_month)s"
         params["stay_month"] = stay_month
@@ -312,7 +387,7 @@ def _get_pickup(days: int = 7, stay_month: str = None) -> dict:
           AND r.stay_date >= CURRENT_DATE
           AND r.create_datetime >= NOW() - (%(days)s || ' days')::interval
     """
-    seg_params = {"days": days}
+    seg_params: dict[str, object] = {"days": days}
     if stay_month:
         seg_query += " AND TO_CHAR(r.stay_date, 'YYYY-MM') = %(stay_month)s"
         seg_params["stay_month"] = stay_month
@@ -363,9 +438,10 @@ def _get_cancellations(days: int = 7) -> dict:
     }
 
 
-def _get_segment_mix(stay_month: str = None) -> dict:
+def _get_segment_mix(stay_month: str | None = None) -> dict:
+    stay_month = _normalize_stay_month(stay_month)
     base_where = "r.reservation_status = 'Reserved' AND r.stay_date >= CURRENT_DATE"
-    params = {}
+    params: dict[str, object] = {}
     if stay_month:
         base_where += " AND TO_CHAR(r.stay_date, 'YYYY-MM') = %(stay_month)s"
         params["stay_month"] = stay_month
@@ -439,9 +515,10 @@ def _get_segment_mix(stay_month: str = None) -> dict:
     }
 
 
-def _get_room_type_analysis(stay_month: str = None) -> dict:
+def _get_room_type_analysis(stay_month: str | None = None) -> dict:
+    stay_month = _normalize_stay_month(stay_month)
     base_where = "r.reservation_status = 'Reserved' AND r.stay_date >= CURRENT_DATE"
-    params = {}
+    params: dict[str, object] = {}
     if stay_month:
         base_where += " AND TO_CHAR(r.stay_date, 'YYYY-MM') = %(stay_month)s"
         params["stay_month"] = stay_month
@@ -473,12 +550,13 @@ def _get_room_type_analysis(stay_month: str = None) -> dict:
     }
 
 
-def _get_company_analysis(stay_month: str = None, min_revenue: float = None) -> dict:
+def _get_company_analysis(stay_month: str | None = None, min_revenue: float | None = None) -> dict:
+    stay_month = _normalize_stay_month(stay_month)
     base_where = (
         "reservation_status = 'Reserved' AND stay_date >= CURRENT_DATE "
         "AND company_name IS NOT NULL"
     )
-    params = {}
+    params: dict[str, object] = {}
     if stay_month:
         base_where += " AND TO_CHAR(stay_date, 'YYYY-MM') = %(stay_month)s"
         params["stay_month"] = stay_month
@@ -507,9 +585,10 @@ def _get_company_analysis(stay_month: str = None, min_revenue: float = None) -> 
     return {"stay_month_filter": stay_month, "companies": result}
 
 
-def _get_concentration_risk(stay_month: str = None) -> dict:
+def _get_concentration_risk(stay_month: str | None = None) -> dict:
+    stay_month = _normalize_stay_month(stay_month)
     base_where = "reservation_status = 'Reserved' AND stay_date >= CURRENT_DATE"
-    params = {}
+    params: dict[str, object] = {}
     if stay_month:
         base_where += " AND TO_CHAR(stay_date, 'YYYY-MM') = %(stay_month)s"
         params["stay_month"] = stay_month
