@@ -104,15 +104,15 @@ backend/
 
 ### Two things called "skills" — important distinction
 
-**SKILL.md files (Claude Agent SDK pattern)** — what the prep course teaches and what Otel's CTO specifically mentioned. A SKILL.md is a structured markdown file defining domain expertise: when to activate, step-by-step process, business rules, output format, guardrails.
+**SKILL.md files** are the domain playbooks. They define when to activate, what process to follow, which business rules matter, and how the answer should sound.
 
-**Anthropic tool-calling** — tool definitions + SQL handlers in `tools.py`. This is data retrieval, not skills. Different concept.
+**Tools in `tools.py`** are live data access. They fetch structured numbers from the database. They are not skills.
 
-### Why we use SKILL.md but not the Claude Agent SDK framework
+### Why we use SKILL.md but not native Claude Code plugin discovery
 
-The Claude Agent SDK (`claude_agent_sdk.query()`) is a CLI/script paradigm — it runs agents that read files, write code, execute bash. It doesn't compose with a FastAPI backend serving a React frontend.
+Native Claude Code/project discovery expects skills to live in a standard Claude directory structure and slash commands to be defined separately in a `commands/` directory. That is ideal when Claude Code itself is the runtime, but this app runs as a custom FastAPI backend serving a frontend and calling Claude through OpenRouter.
 
-But the **SKILL.md content pattern** is exactly right for this project. We write proper SKILL.md files and load their content to build the system prompt. Otel engineers will recognise the pattern immediately — it's the right signal to send.
+So this project uses the **SKILL.md content pattern** rather than native Claude Code plugin loading. We still write proper SKILL.md files, but `agent.py` loads them into the system prompt at runtime. That keeps the domain rules modular and recognizable without pretending this repo is a full Claude Code plugin.
 
 ### Our SKILL.md files
 
@@ -124,18 +124,9 @@ backend/.claude/skills/
     └── SKILL.md    ← briefing structure, what to surface, output format
 ```
 
-**`revenue-analysis/SKILL.md`** contains:
-- When to activate (any revenue, OTB, ADR, pickup, cancellation question)
-- The grain rule (one row per reservation × stay_date — never count rows)
-- Canonical metric definitions (reservation count, room nights, ADR, OTB)
-- Guardrails (always exclude Cancelled by default, use stay_date vs create_datetime correctly)
-- Which tool to call for which question type
+**`revenue-analysis/SKILL.md`** handles the hotel math: table grain, canonical metric definitions, cancellation defaults, date-field rules, and tool-picking guidance.
 
-**`morning-briefing/SKILL.md`** contains:
-- When to activate (startup, "generate briefing", "what should I know today")
-- Process (call all 4 tools in parallel, synthesise)
-- Output format (headline → context → risk/opportunity → recommendation)
-- Rules (under 300 words, lead with the biggest issue, always end with one action)
+**`morning-briefing/SKILL.md`** handles the briefing behavior: when to run, which tools to call, how to structure the answer, and how to land on one clear action.
 
 ### How agent.py loads them
 
@@ -150,7 +141,7 @@ def build_system_prompt() -> str:
     return "\n\n---\n\n".join(skill_content)
 ```
 
-Claude gets all domain expertise baked into context at startup — correct business logic, correct output format, correct guardrails — all from structured SKILL.md files, not a sprawling ad-hoc prompt string.
+Claude gets the domain logic at startup from structured SKILL.md files rather than one long hand-written prompt.
 
 ---
 
@@ -160,12 +151,12 @@ Claude gets all domain expertise baked into context at startup — correct busin
 ┌──────────────────────────────────────────────────────┐
 │             REACT FRONTEND (Vite)                    │
 │                                                      │
-│  MorningBriefing  — auto-fetches /briefing on load   │
-│  ChatInterface    — GM types question, gets answer   │
-│  MetricCards      — revenue / room nights / ADR      │
-│  SegmentChart     — OTA vs direct vs group mix       │
-│                                                      │
-│  Built with: ui-ux-pro-max skill                     │
+│  Stitch-inspired dashboard shell                     │
+│  API key panel + backend health                      │
+│  Morning briefing panel from /briefing               │
+│  Follow-up chat panel backed by /chat                │
+│  KPI cards + monthly runway parsed from tool output  │
+│  Memory panel backed by /memory                      │
 └───────────────────────┬──────────────────────────────┘
                         │ HTTP / JSON
                         │
@@ -174,7 +165,9 @@ Claude gets all domain expertise baked into context at startup — correct busin
 │                                                      │
 │  POST /briefing   → morning briefing                 │
 │  POST /chat       → GM question answer               │
+│  POST /chat/stream→ streamed GM answer               │
 │  GET  /health     → liveness check                   │
+│  GET/DELETE /memory → view/reset session memory      │
 └───────────────────────┬──────────────────────────────┘
                         │
 ┌───────────────────────▼──────────────────────────────┐
@@ -184,9 +177,10 @@ Claude gets all domain expertise baked into context at startup — correct busin
 │  SDK: openai → OpenRouter (user's API key)           │
 │  System prompt: loaded from SKILL.md files           │
 │                                                      │
-│  Flow: question → match skill? → run skill           │
-│                              → no match → freeform   │
-│                                           SQL + rules│
+│  Flow: question → lightweight skill routing          │
+│                  → Morning Briefing or Revenue       │
+│                  → Claude selects tools              │
+│                  → synthesises final answer          │
 └──────────┬────────────────────────────┬──────────────┘
            │                            │
 ┌──────────▼──────────┐   ┌─────────────▼─────────────┐
@@ -220,6 +214,13 @@ Claude gets all domain expertise baked into context at startup — correct busin
 | Backend API | FastAPI + uvicorn | Async, minimal boilerplate, auto-docs |
 | Frontend | React + Vite | Fast scaffold, component-based, looks real in demo |
 | UI design | `ui-ux-pro-max` skill | Production-quality design, not generic AI output |
+
+### Frontend implementation notes
+
+- The implemented frontend is based on the Google Stitch export, but translated into reusable React components rather than shipping the raw static HTML.
+- The live frontend experience is grounded in real backend contracts: `GET /health`, `POST /briefing`, `POST /chat`, `GET /memory`, and `DELETE /memory`.
+- KPI cards and the monthly runway table are populated by parsing the structured tool outputs that come back inside the stored briefing `history` array.
+- The right-hand dashboard modules are intentionally honest about current backend scope: the core live experience is briefing + follow-up chat, with supporting dashboard visuals derived from that same live result set.
 
 ### OpenRouter setup
 
@@ -316,14 +317,24 @@ D:/Otel/
 │   └── api.py                   ← FastAPI: /briefing /chat /health /memory
 └── frontend/
     ├── package.json
+    ├── package-lock.json
     └── src/
         ├── App.jsx
-        ├── api.js               ← axios calls to backend
+        ├── index.css            ← Stitch-inspired theme + layout system
+        ├── api/
+        │   └── client.js        ← fetch helpers for /health /briefing /chat /memory
+        ├── utils/
+        │   └── formatters.js    ← money/percent/date formatting + briefing parsing
         └── components/
-            ├── MorningBriefing.jsx
-            ├── ChatInterface.jsx
-            ├── MetricCard.jsx
-            └── SegmentChart.jsx
+            ├── AppHeader.jsx
+            ├── ApiKeyPanel.jsx
+            ├── InsightCard.jsx
+            ├── BriefingPanel.jsx
+            ├── AlertsPanel.jsx
+            ├── GroupPerformanceTable.jsx
+            ├── ChurnVelocityChart.jsx
+            ├── RoomTypeMatrix.jsx
+            └── ChatPanel.jsx
 ```
 
 ---
@@ -332,100 +343,127 @@ D:/Otel/
 
 ### Why not text-to-SQL
 
-Most teams will prompt Claude to generate SQL and run it. This is fragile:
-- Claude can make the grain mistake (count rows as reservations)
-- Hallucinated column names break queries
-- No consistency between runs on the same question
+Most teams will prompt Claude to generate SQL and run it. That is fragile:
+- it can make the grain mistake and count rows as reservations
+- it can hallucinate columns or joins
+- it can answer the same question differently across runs
 
-### Why not a custom routing layer
+### Why not a heavy custom routing layer
 
-A separate routing step (match question → pick skill → run SQL) fights Claude's native capabilities and adds a failure point. Claude's tool selection IS the intent routing — use it.
+A separate classifier for every possible intent adds another failure point. We only add lightweight routing for the few flows that materially change behavior, then let Claude handle tool selection inside that path.
 
-### What we use: Native Anthropic tool-calling
+### What we do route explicitly
 
-Tools are defined as Anthropic tool definitions. Claude selects which tools to call — no separate routing layer. Tool handlers contain pre-validated SQL with the correct business rules baked in. Claude reasons over structured data returned by tools, not raw text rows.
+`agent.py` now distinguishes between:
+- **Morning Briefing** — overview-style prompts where the briefing workflow should be emphasized
+- **Revenue Analysis** — normal GM questions where the smallest relevant tool set should be used
 
-### The 5 tools (defined in `tools.py`)
+That keeps the skills more than advisory without building a brittle intent engine.
+
+### What we use: OpenAI-format tool-calling via OpenRouter
+
+The backend uses the `openai` SDK against OpenRouter, so tools are defined in OpenAI chat-completions function format. The skills provide the decision rules and output style. The tools provide structured live data. Tool handlers bake in the business logic so Claude reasons over safe, consistent results instead of composing raw SQL every time.
+
+### The tools (defined in `tools.py`)
 
 | Tool | Description Claude sees | Pre-validated SQL returns |
 |---|---|---|
-| `get_otb_summary` | Revenue on the books by month for future stays | `{month, room_nights, revenue, adr}[]` |
-| `get_pickup` | New reservations booked in last N days for future stays | `{reservations, room_nights, revenue, avg_lead_time}` |
-| `get_cancellations` | Cancellations in last N days and affected stay dates | `{cancelled_reservations, room_nights_lost, affected_months}[]` |
-| `get_segment_mix` | Market segment and channel mix for future business | `{segment, room_nights, revenue, pct_of_total}[]` |
-| `run_sql` | Escape hatch for questions none of the above cover | Raw rows (last resort only) |
+| `get_otb_summary` | Revenue on the books by month for future stays | `{by_month, totals}` |
+| `get_pickup` | New reservations booked in last N days for future stays | `{summary, by_segment}` |
+| `get_cancellations` | Cancellations in last N days and affected stay months | `{summary, by_stay_month}` |
+| `get_segment_mix` | Market segment and channel mix for future business | `{by_segment, by_channel, concentration}` |
+| `get_room_type_analysis` | ADR, room nights, and revenue by room type | `{by_room_type}` |
+| `get_company_analysis` | Revenue and room nights by company | `{companies}` |
+| `get_concentration_risk` | Dependency and concentration summary | `{ota_pct, group_block_pct, top_segment, top_company}` |
+| `remember_preference` | Persist GM preferences and thresholds across sessions | `{saved, key, value}` |
+| `run_sql` | Escape hatch for questions none of the above cover | `{rows}` |
 
-### Tool definition shape (Anthropic SDK format)
+### Tool definition shape (OpenAI chat-completions format)
 ```python
 TOOLS = [
     {
-        "name": "get_otb_summary",
-        "description": "Get revenue on the books by month for future stay dates. Returns room nights, total revenue, and ADR per month. Excludes cancelled reservations.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "months_ahead": {
-                    "type": "integer",
-                    "description": "How many months ahead to include. Default 3."
+        "type": "function",
+        "function": {
+            "name": "get_otb_summary",
+            "description": "Get revenue on the books by month for future stay dates. Returns room nights, total revenue, and ADR per month. Excludes cancelled reservations.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "months_ahead": {
+                        "type": "integer",
+                        "description": "How many months ahead to include. Default 5."
+                    }
                 }
             }
         }
     },
-    # ... same pattern for get_pickup, get_cancellations, get_segment_mix, run_sql
+    # ... same pattern for the remaining tools
 ]
 ```
 
 ### Tool handler shape (`tools.py`)
 ```python
-def handle_tool(name: str, inputs: dict, conn) -> dict:
+def handle_tool(name: str, arguments: dict) -> str:
     if name == "get_otb_summary":
-        return _get_otb_summary(inputs.get("months_ahead", 3), conn)
+        result = _get_otb_summary(arguments.get("months_ahead", 5))
     elif name == "get_pickup":
-        return _get_pickup(inputs.get("days", 7), inputs.get("stay_month"), conn)
+        result = _get_pickup(
+            days=arguments.get("days", 7),
+            stay_month=arguments.get("stay_month"),
+        )
     # ...
+    return json.dumps(result)
 
-def _get_otb_summary(months_ahead: int, conn) -> dict:
+def _get_otb_summary(months_ahead: int = 5) -> dict:
     # Pre-validated SQL using correct metric definitions
     # COUNT(DISTINCT reservation_id), SUM(number_of_spaces), correct ADR formula
-    # Returns structured dict — not raw rows, not text
+    # Returns structured dict which is then JSON-encoded for the tool response
     ...
 ```
 
-### Parallel tool calls — morning briefing
+### Morning briefing pattern
 
-Claude can issue multiple tool calls in one API response. The morning briefing uses this:
+The morning briefing asks Claude for a complete snapshot in one pass:
 
 ```
 Prompt: "Run morning briefing"
 
 Claude response → [
-    tool_use: get_otb_summary(months_ahead=3),
-    tool_use: get_pickup(days=7),
-    tool_use: get_cancellations(days=7),
-    tool_use: get_segment_mix()
+    tool_call: get_otb_summary(months_ahead=5),
+    tool_call: get_pickup(days=7),
+    tool_call: get_cancellations(days=7),
+    tool_call: get_segment_mix(),
+    tool_call: get_concentration_risk()
 ]
 
-All 4 execute in parallel → structured results fed back to Claude
+All 5 are requested in one model turn → structured results fed back to Claude
 → Claude synthesises into one GM briefing with the #1 action
 ```
 
-This is faster than sequential and demonstrates the agentic pattern correctly.
+That keeps the briefing grounded in live data and still gives the GM one clear recommendation.
 
 ### Agent tool loop (`agent.py`)
 ```python
-# Standard Anthropic tool-use loop
+# Standard OpenAI-compatible tool-use loop
 while True:
-    response = client.messages.create(model=MODEL, tools=TOOLS, messages=messages)
-    if response.stop_reason == "end_turn":
-        break
-    if response.stop_reason == "tool_use":
-        tool_results = []
-        for block in response.content:
-            if block.type == "tool_use":
-                result = handle_tool(block.name, block.input, conn)
-                tool_results.append({"tool_use_id": block.id, "content": json.dumps(result)})
-        messages.append({"role": "assistant", "content": response.content})
-        messages.append({"role": "user", "content": tool_results})
+    response = client.chat.completions.create(
+        model=MODEL,
+        messages=[{"role": "system", "content": system_prompt}] + messages,
+        tools=TOOLS,
+    )
+
+    choice = response.choices[0]
+    if choice.finish_reason == "tool_calls":
+        assistant_message = choice.message
+        for tc in assistant_message.tool_calls:
+            result = handle_tool(tc.function.name, json.loads(tc.function.arguments))
+            messages.append({
+                "role": "tool",
+                "tool_call_id": tc.id,
+                "content": result,
+            })
+    else:
+        return choice.message.content
 ```
 
 ---
@@ -574,11 +612,12 @@ Example:
 
 ### Phase 2 — Frontend (only after backend is solid)
 
-6. Scaffold with Vite React
-7. Invoke `ui-ux-pro-max` skill to design and build components
-8. `MorningBriefing.jsx` — calls `/briefing` on mount
-9. `ChatInterface.jsx` — sends questions to `/chat`, displays response
-10. `MetricCard.jsx` + `SegmentChart.jsx` — visualise key numbers
+6. Scaffold with Vite React ✅ done
+7. Implement Stitch-inspired dashboard shell in reusable React components ✅ done
+8. `ApiKeyPanel.jsx` + `AppHeader.jsx` — API key input, backend health, session framing ✅ done
+9. `BriefingPanel.jsx` + `ChatPanel.jsx` — `/briefing` and `/chat` integration with history state ✅ done
+10. `InsightCard.jsx` + `GroupPerformanceTable.jsx` + `ChurnVelocityChart.jsx` — visualise parsed tool output from briefing history ✅ done
+11. `RoomTypeMatrix.jsx` — surfaces stored preferences, thresholds, and memory reset ✅ done
 
 ### Phase 3 — Polish
 
