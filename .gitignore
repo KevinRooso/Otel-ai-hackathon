@@ -5,3 +5,15 @@ __pycache__
 # Ignore virtual environment directories
 venv/
 .env
+
+# Playwright MCP artifacts
+.playwright-mcp/
+
+# Cloned upstream repo (read-only reference)
+otel-hackathon/
+
+# Node
+node_modules/
+
+# Screenshots from testing
+*.png

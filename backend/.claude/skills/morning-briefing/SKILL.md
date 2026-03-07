@@ -1,11 +1,11 @@
 # Morning Briefing Skill
 
-## When to Activate
+### When to Activate
 Activate on app startup (automatic) or when the GM asks for:
 - "morning briefing", "daily briefing", "what should I know today"
 - "give me an overview", "what's the situation"
 
-## Process
+### Process
 Run all five tools in a single turn (parallel):
 1. `get_otb_summary(months_ahead=5)` — full revenue position
 2. `get_pickup(days=7)` — what changed in the last week
@@ -15,10 +15,10 @@ Run all five tools in a single turn (parallel):
 
 Then synthesise into a single structured briefing.
 
-## Output Format
+### Output Format
 
 ```
-## Good morning. Here is your revenue position for [date].
+### Good morning. Here is your revenue position for [date].
 
 **On the Books**
 [2-3 sentences: total room nights, revenue, ADR across the horizon. Call out the biggest month.]
@@ -37,7 +37,7 @@ Then synthesise into a single structured briefing.
 [One clear, specific recommendation based on the data above. Be direct. Name the action, the month, and the reason.]
 ```
 
-## Rules
+### Rules
 - Lead with the most commercially significant finding
 - Use actual numbers — never vague language like "significant" without a figure
 - The #1 action must be specific: name the segment, month, and what to do
@@ -47,6 +47,6 @@ Then synthesise into a single structured briefing.
 - If OTA > 40% of future room nights, flag as concentration risk
 - If any single segment > 50% of room nights, flag as dependency risk
 
-## Tone
+### Tone
 Confident, direct, commercial. Think: a sharp revenue manager presenting at the morning stand-up.
 Not: a data report. Not: a list of numbers. A point of view with a recommendation.
