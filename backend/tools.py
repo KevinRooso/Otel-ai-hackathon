@@ -1,4 +1,5 @@
 import json
+import re
 from decimal import Decimal
 from db import run_sql
 from memory import memory
@@ -143,6 +144,68 @@ TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_room_type_analysis",
+            "description": (
+                "ADR, room nights, and revenue breakdown by room type for future on-the-books business. "
+                "Use for room type comparisons, ADR by room type, room mix questions."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "stay_month": {
+                        "type": "string",
+                        "description": "Optional. Filter to a specific stay month in YYYY-MM format.",
+                    }
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_company_analysis",
+            "description": (
+                "Revenue and room night contribution by company/corporate account. "
+                "Use for company revenue, corporate concentration, key account questions."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "stay_month": {
+                        "type": "string",
+                        "description": "Optional. Filter to a specific stay month in YYYY-MM format.",
+                    },
+                    "min_revenue": {
+                        "type": "number",
+                        "description": "Optional. Minimum revenue threshold to include a company.",
+                    },
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_concentration_risk",
+            "description": (
+                "Business concentration metrics and risk assessment in one call. "
+                "Returns OTA % of room nights, top segment name and %, top company name and revenue %, "
+                "and group block % of room nights. Use for risk, dependency, concentration questions."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "stay_month": {
+                        "type": "string",
+                        "description": "Optional. Filter to a specific stay month in YYYY-MM format.",
+                    }
+                },
+            },
+        },
+    },
 ]
 
 
@@ -156,6 +219,18 @@ def _serialize(rows: list[dict]) -> list[dict]:
     for row in rows:
         out.append({k: float(v) if isinstance(v, Decimal) else v for k, v in row.items()})
     return out
+
+
+def _validate_sql(query: str) -> str | None:
+    """Return an error message if the query is not a safe SELECT, else None."""
+    normalized = query.strip().upper()
+    if not normalized.startswith("SELECT"):
+        return "Only SELECT queries are allowed for safety."
+    forbidden = {"DROP", "DELETE", "INSERT", "UPDATE", "ALTER", "TRUNCATE", "GRANT", "REVOKE"}
+    tokens = set(re.findall(r"[A-Z_]+", normalized))
+    if tokens & forbidden:
+        return "Only SELECT queries are allowed for safety."
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -364,6 +439,146 @@ def _get_segment_mix(stay_month: str = None) -> dict:
     }
 
 
+def _get_room_type_analysis(stay_month: str = None) -> dict:
+    base_where = "r.reservation_status = 'Reserved' AND r.stay_date >= CURRENT_DATE"
+    params = {}
+    if stay_month:
+        base_where += " AND TO_CHAR(r.stay_date, 'YYYY-MM') = %(stay_month)s"
+        params["stay_month"] = stay_month
+
+    rows = run_sql(
+        f"""
+        SELECT
+            rt.display_name,
+            rt.room_class,
+            rt.number_of_rooms                                                    AS inventory,
+            COUNT(DISTINCT r.reservation_id)                                      AS reservations,
+            SUM(r.number_of_spaces)                                              AS room_nights,
+            ROUND(SUM(r.daily_total_revenue_before_tax)::numeric, 0)             AS total_revenue,
+            ROUND(
+                (SUM(r.daily_room_revenue_before_tax) / NULLIF(SUM(r.number_of_spaces), 0))::numeric,
+                2
+            )                                                                     AS adr
+        FROM reservations_hackathon r
+        JOIN room_type_lookup rt ON r.space_type = rt.space_type
+        WHERE {base_where}
+        GROUP BY rt.display_name, rt.room_class, rt.number_of_rooms
+        ORDER BY adr DESC
+        """,
+        params,
+    )
+    return {
+        "stay_month_filter": stay_month,
+        "by_room_type": _serialize(rows),
+    }
+
+
+def _get_company_analysis(stay_month: str = None, min_revenue: float = None) -> dict:
+    base_where = (
+        "reservation_status = 'Reserved' AND stay_date >= CURRENT_DATE "
+        "AND company_name IS NOT NULL"
+    )
+    params = {}
+    if stay_month:
+        base_where += " AND TO_CHAR(stay_date, 'YYYY-MM') = %(stay_month)s"
+        params["stay_month"] = stay_month
+
+    rows = run_sql(
+        f"""
+        SELECT
+            company_name,
+            COUNT(DISTINCT reservation_id)                                        AS reservations,
+            SUM(number_of_spaces)                                                AS room_nights,
+            ROUND(SUM(daily_total_revenue_before_tax)::numeric, 0)               AS revenue,
+            ROUND(
+                (SUM(daily_room_revenue_before_tax) / NULLIF(SUM(number_of_spaces), 0))::numeric,
+                2
+            )                                                                     AS adr
+        FROM reservations_hackathon
+        WHERE {base_where}
+        GROUP BY company_name
+        ORDER BY revenue DESC
+        """,
+        params,
+    )
+    result = _serialize(rows)
+    if min_revenue is not None:
+        result = [r for r in result if r["revenue"] >= min_revenue]
+    return {"stay_month_filter": stay_month, "companies": result}
+
+
+def _get_concentration_risk(stay_month: str = None) -> dict:
+    base_where = "reservation_status = 'Reserved' AND stay_date >= CURRENT_DATE"
+    params = {}
+    if stay_month:
+        base_where += " AND TO_CHAR(stay_date, 'YYYY-MM') = %(stay_month)s"
+        params["stay_month"] = stay_month
+
+    # OTA and group block percentages
+    pct_rows = run_sql(
+        f"""
+        SELECT
+            ROUND(
+                SUM(number_of_spaces) FILTER (WHERE market_code = 'OTA') * 100.0
+                / NULLIF(SUM(number_of_spaces), 0), 1
+            ) AS ota_pct,
+            ROUND(
+                SUM(number_of_spaces) FILTER (WHERE is_block = true) * 100.0
+                / NULLIF(SUM(number_of_spaces), 0), 1
+            ) AS group_block_pct
+        FROM reservations_hackathon
+        WHERE {base_where}
+        """,
+        params,
+    )
+
+    # Top segment by room nights
+    top_segment = run_sql(
+        f"""
+        SELECT
+            m.market_name,
+            ROUND(
+                SUM(r.number_of_spaces) * 100.0
+                / NULLIF((SELECT SUM(number_of_spaces) FROM reservations_hackathon WHERE {base_where}), 0),
+                1
+            ) AS pct_of_room_nights
+        FROM reservations_hackathon r
+        JOIN market_code_lookup m ON r.market_code = m.market_code
+        WHERE {base_where.replace('reservation_status', 'r.reservation_status').replace('stay_date', 'r.stay_date').replace('number_of_spaces', 'r.number_of_spaces').replace('market_code', 'r.market_code').replace('is_block', 'r.is_block')}
+        GROUP BY m.market_name
+        ORDER BY SUM(r.number_of_spaces) DESC
+        LIMIT 1
+        """,
+        params,
+    )
+
+    # Top company by revenue
+    top_company = run_sql(
+        f"""
+        SELECT
+            company_name,
+            ROUND(
+                SUM(daily_total_revenue_before_tax) * 100.0
+                / NULLIF((SELECT SUM(daily_total_revenue_before_tax) FROM reservations_hackathon WHERE {base_where}), 0),
+                1
+            ) AS pct_of_revenue
+        FROM reservations_hackathon
+        WHERE {base_where} AND company_name IS NOT NULL
+        GROUP BY company_name
+        ORDER BY SUM(daily_total_revenue_before_tax) DESC
+        LIMIT 1
+        """,
+        params,
+    )
+
+    concentration = _serialize(pct_rows)[0]
+    concentration["top_segment"] = _serialize(top_segment)[0] if top_segment else None
+    concentration["top_company"] = _serialize(top_company)[0] if top_company else None
+    concentration["stay_month_filter"] = stay_month
+
+    return concentration
+
+
 # ---------------------------------------------------------------------------
 # Dispatcher
 # ---------------------------------------------------------------------------
@@ -382,6 +597,15 @@ def handle_tool(name: str, arguments: dict) -> str:
             result = _get_cancellations(days=arguments.get("days", 7))
         elif name == "get_segment_mix":
             result = _get_segment_mix(stay_month=arguments.get("stay_month"))
+        elif name == "get_room_type_analysis":
+            result = _get_room_type_analysis(stay_month=arguments.get("stay_month"))
+        elif name == "get_company_analysis":
+            result = _get_company_analysis(
+                stay_month=arguments.get("stay_month"),
+                min_revenue=arguments.get("min_revenue"),
+            )
+        elif name == "get_concentration_risk":
+            result = _get_concentration_risk(stay_month=arguments.get("stay_month"))
         elif name == "remember_preference":
             if arguments.get("type") == "threshold":
                 memory.set_threshold(arguments["key"], arguments["value"])
@@ -389,11 +613,15 @@ def handle_tool(name: str, arguments: dict) -> str:
                 memory.set_preference(arguments["key"], arguments["value"])
             result = {"saved": True, "key": arguments["key"], "value": arguments["value"]}
         elif name == "run_sql":
-            rows = run_sql(arguments["query"])
-            result = {"rows": _serialize(rows)}
+            error = _validate_sql(arguments["query"])
+            if error:
+                result = {"error": error}
+            else:
+                rows = run_sql(arguments["query"])
+                result = {"rows": _serialize(rows)}
         else:
             result = {"error": f"Unknown tool: {name}"}
-    except Exception as e:
-        result = {"error": str(e)}
+    except Exception:
+        result = {"error": f"Tool '{name}' encountered an issue. Try rephrasing your question or using a simpler approach."}
 
     return json.dumps(result)

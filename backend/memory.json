@@ -1,5 +1,20 @@
 {
   "preferences": {},
-  "thresholds": {},
-  "session_log": []
+  "thresholds": {
+    "ota_target": "25%"
+  },
+  "session_log": [
+    {
+      "date": "2026-03-07 15:19",
+      "insight": "Morning briefing: ## Good morning. Here is your revenue position for today.\n\n---\n\n### \ud83d\udcca On the Books\n\nAcross the 5-month horizon (April\u2013August 2026), you have **876 room nights and $173,559 in total revenue** at a blen"
+    },
+    {
+      "date": "2026-03-07 15:21",
+      "insight": "Q: What changed in the last 7 days? | A: Here's what moved in the last 7 days. Net position is strongly positive, but there are two things worth flagging.\n\n---\n\n### \ud83d\udcc8 Pickup \u2014 Strong Week\n\n**"
+    },
+    {
+      "date": "2026-03-07 15:23",
+      "insight": "Q: Are we too dependent on OTA? | A: Already have the concentration data from this session \u2014 no need to re-pull. Here's the assessment using your custom OTA target of **25%**.\n\n---\n\n**CON"
+    }
+  ]
 }

@@ -1,6 +1,10 @@
+import json
+import asyncio
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from sse_starlette.sse import EventSourceResponse, ServerSentEvent
 
 from agent import run_agent, run_morning_briefing
 from db import check_connection
@@ -54,6 +58,7 @@ def health():
 def briefing(req: BriefingRequest):
     try:
         text, history = run_morning_briefing(api_key=req.api_key)
+        memory.log_session(f"Morning briefing: {text[:200]}")
         return {"response": text, "history": history}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -71,11 +76,41 @@ def chat(req: ChatRequest):
             api_key=req.api_key,
             history=req.history,
         )
+        memory.log_session(f"Q: {req.message[:50]} | A: {text[:150]}")
         return {"response": text, "history": updated_history}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/chat/stream", response_class=EventSourceResponse, response_model=None)
+async def chat_stream(req: ChatRequest):
+    """SSE streaming endpoint — streams agent response word-by-word for typing effect."""
+    try:
+        text, updated_history = run_agent(
+            user_message=req.message,
+            api_key=req.api_key,
+            history=req.history,
+        )
+        words = text.split(" ")
+        for i, word in enumerate(words):
+            separator = " " if i > 0 else ""
+            yield ServerSentEvent(
+                data=json.dumps({"type": "token", "text": separator + word}),
+                event="token",
+            )
+            await asyncio.sleep(0.02)
+        yield ServerSentEvent(
+            data=json.dumps({"type": "done", "history": updated_history}),
+            event="done",
+        )
+        memory.log_session(f"Q: {req.message[:50]} | A: {text[:150]}")
+    except Exception as e:
+        yield ServerSentEvent(
+            data=json.dumps({"type": "error", "message": str(e)}),
+            event="error",
+        )
 
 
 @app.get("/memory", response_model=MemoryResponse)
