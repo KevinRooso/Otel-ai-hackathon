@@ -49,11 +49,22 @@ MORNING_BRIEFING_HINTS = (
 )
 
 
+CONCENTRATION_RISK_HINTS = (
+    "concentration",
+    "ota dependency",
+    "ota risk",
+    "diversification",
+)
+
+
 def _classify_skill(user_message: str, history: list | None = None) -> str:
     """Pick the primary skill to emphasize for this turn."""
     text = re.sub(r"\s+", " ", user_message.strip().lower())
     if any(phrase in text for phrase in MORNING_BRIEFING_HINTS):
         return "morning_briefing"
+
+    if any(phrase in text for phrase in CONCENTRATION_RISK_HINTS):
+        return "concentration_risk"
 
     if not history and text in {"briefing", "overview", "status"}:
         return "morning_briefing"
@@ -66,7 +77,7 @@ def _classify_skill(user_message: str, history: list | None = None) -> str:
 # ---------------------------------------------------------------------------
 
 def _build_system_prompt(active_skill: str) -> str:
-    base = f"""You are a Revenue Manager Agent for a Hotel General Manager.
+    base = f"""You are Otel AI, a Revenue Intelligence assistant for a Hotel General Manager.
 
 Your job is to detect what is changing in the hotel's future business, turn it into clear commercial judgment, and tell the GM what matters most, why it matters, and what action to take next.
 
@@ -80,19 +91,41 @@ Response style:
 - Round revenue to nearest whole number, ADR to 2 decimal places, percentages to 1 decimal place
 - State your assumption whenever date scope or cancellation handling is ambiguous
 - Never present a number without context
+
+Proactive Intelligence:
+- After answering, suggest 2-3 follow-up questions the GM might want to explore
+- Flag any emerging patterns you notice in the data (e.g. shifting segment mix, pickup trends)
+- Where relevant, propose a brief strategy or next step the GM could take
 """
 
-    if active_skill == "morning_briefing":
+    if active_skill == "greeting":
+        base += (
+            "\n\nActive skill for this turn: Greeting Briefing. "
+            "Produce a warm, concise morning greeting (~200 words). "
+            "Do NOT use formal headers like '## Good morning' — keep it conversational. "
+            "Call all 5 tools (get_otb_summary, get_pickup, get_cancellations, get_segment_mix, get_concentration_risk) "
+            "but present the results casually, weaving data into a friendly narrative. "
+            "End with 2-3 suggested questions the GM might want to explore."
+        )
+    elif active_skill == "morning_briefing":
         base += (
             "\n\nActive skill for this turn: Morning Briefing. "
             "Follow the Morning Briefing skill's workflow and structure. "
             "Use the five-tool snapshot unless the user explicitly asks for a narrower scope."
         )
+    elif active_skill == "concentration_risk":
+        base += (
+            "\n\nActive skill for this turn: Concentration Risk Analysis. "
+            "Focus on OTA dependency, segment diversification, and concentration risk. "
+            "Use get_concentration_risk and get_segment_mix as primary tools. "
+            "Highlight any segments exceeding safe thresholds and recommend diversification actions."
+        )
     else:
         base += (
             "\n\nActive skill for this turn: Revenue Analysis. "
             "Follow the Revenue Analysis skill's metric definitions, guardrails, and tool selection guide. "
-            "Choose the smallest set of tools that answers the question well."
+            "Choose the smallest set of tools that answers the question well. "
+            "Be conversational — use markdown for structure but keep the tone friendly and direct."
         )
 
     mem_context = memory.get_context_string()
@@ -200,3 +233,30 @@ def run_morning_briefing(api_key: str | None = None) -> tuple[str, list]:
         api_key=api_key,
         history=[],
     )
+
+
+def run_greeting_briefing(api_key: str | None = None) -> tuple[str, list]:
+    """Run a warm, conversational greeting briefing. Returns (text, messages) like run_agent."""
+    key = api_key or FALLBACK_API_KEY
+    if not key:
+        raise ValueError("No OpenRouter API key provided.")
+
+    client = _get_client(key)
+    system_prompt = _build_system_prompt(active_skill="greeting")
+
+    messages: list = []
+    messages.append({
+        "role": "user",
+        "content": (
+            "Generate a warm, concise morning greeting for the GM. "
+            "Call all 5 tools (get_otb_summary, get_pickup, get_cancellations, "
+            "get_segment_mix, get_concentration_risk) for maximum data. "
+            "Present the highlights conversationally in ~200 words — no formal headers, "
+            "just a friendly briefing. End with 2-3 suggested questions the GM might want to explore."
+        ),
+    })
+
+    response_text = _run_tool_loop(client, messages, system_prompt)
+    messages.append({"role": "assistant", "content": response_text})
+
+    return response_text, messages

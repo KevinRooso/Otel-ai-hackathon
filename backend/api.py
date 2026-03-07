@@ -1,12 +1,13 @@
 import json
 import asyncio
+from typing import Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse, ServerSentEvent
 
-from agent import run_agent, run_morning_briefing
+from agent import run_agent, run_morning_briefing, run_greeting_briefing
 from db import check_connection
 from memory import memory
 
@@ -25,11 +26,12 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 
 class BriefingRequest(BaseModel):
-    api_key: str
+    api_key: Optional[str] = None
+    mode: str = "full"
 
 class ChatRequest(BaseModel):
     message: str
-    api_key: str
+    api_key: Optional[str] = None
     history: list = []          # conversation messages from the frontend
 
 class AgentResponse(BaseModel):
@@ -57,7 +59,10 @@ def health():
 @app.post("/briefing", response_model=AgentResponse)
 def briefing(req: BriefingRequest):
     try:
-        text, history = run_morning_briefing(api_key=req.api_key)
+        if req.mode == "greeting":
+            text, history = run_greeting_briefing(api_key=req.api_key)
+        else:
+            text, history = run_morning_briefing(api_key=req.api_key)
         memory.log_session(f"Morning briefing: {text[:200]}")
         return {"response": text, "history": history}
     except ValueError as e:
@@ -87,30 +92,35 @@ def chat(req: ChatRequest):
 @app.post("/chat/stream", response_class=EventSourceResponse, response_model=None)
 async def chat_stream(req: ChatRequest):
     """SSE streaming endpoint — streams agent response word-by-word for typing effect."""
-    try:
-        text, updated_history = run_agent(
-            user_message=req.message,
-            api_key=req.api_key,
-            history=req.history,
-        )
-        words = text.split(" ")
-        for i, word in enumerate(words):
-            separator = " " if i > 0 else ""
-            yield ServerSentEvent(
-                data=json.dumps({"type": "token", "text": separator + word}),
-                event="token",
+
+    async def _generate():
+        try:
+            text, updated_history = await asyncio.to_thread(
+                run_agent,
+                user_message=req.message,
+                api_key=req.api_key,
+                history=req.history,
             )
-            await asyncio.sleep(0.02)
-        yield ServerSentEvent(
-            data=json.dumps({"type": "done", "history": updated_history}),
-            event="done",
-        )
-        memory.log_session(f"Q: {req.message[:50]} | A: {text[:150]}")
-    except Exception as e:
-        yield ServerSentEvent(
-            data=json.dumps({"type": "error", "message": str(e)}),
-            event="error",
-        )
+            words = text.split(" ")
+            for i, word in enumerate(words):
+                separator = " " if i > 0 else ""
+                yield ServerSentEvent(
+                    data=json.dumps({"type": "token", "text": separator + word}),
+                    event="token",
+                )
+                await asyncio.sleep(0.02)
+            yield ServerSentEvent(
+                data=json.dumps({"type": "done", "history": updated_history}),
+                event="done",
+            )
+            memory.log_session(f"Q: {req.message[:50]} | A: {text[:150]}")
+        except Exception as e:
+            yield ServerSentEvent(
+                data=json.dumps({"type": "error", "message": str(e)}),
+                event="error",
+            )
+
+    return EventSourceResponse(_generate())
 
 
 @app.get("/memory", response_model=MemoryResponse)
