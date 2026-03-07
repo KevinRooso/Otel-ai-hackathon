@@ -4,7 +4,6 @@ import {
   Bar,
   BarChart,
   Cell,
-  Legend,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -67,6 +66,22 @@ function shapeResponseVisualizationData(data, chartType) {
   }))
 }
 
+function shouldUseSummaryLayout(chartData, shapedType) {
+  if (!chartData?.length) {
+    return false
+  }
+
+  if (shapedType === 'donut') {
+    return chartData.length > 5
+  }
+
+  if (shapedType === 'trend') {
+    return chartData.length > 8
+  }
+
+  return chartData.length > 6
+}
+
 function ArtifactChart({ data, title, chartType, compact = false }) {
   if (!data || data.length === 0) return null
 
@@ -75,16 +90,55 @@ function ArtifactChart({ data, title, chartType, compact = false }) {
   const keys = Object.keys(chartData[0])
   const labelKey = keys.find((k) => typeof chartData[0][k] === 'string') || keys[0]
   const valueKeys = keys.filter((k) => typeof chartData[0][k] === 'number')
-  const height = compact ? 180 : 200
+  const summaryOnly = compact && shouldUseSummaryLayout(chartData, shapedType)
+
+  if (summaryOnly) {
+    return (
+      <div className="artifact-chart artifact-chart--summary">
+        {title && <h4>{title}</h4>}
+        <div className="artifact-summary-list">
+          {chartData.slice(0, 5).map((entry, index) => (
+            <div key={`${entry[labelKey]}-${index}`} className="artifact-summary-item">
+              <div className="artifact-summary-item__topline">
+                <span className="artifact-chart__legend-swatch" style={{ background: COLORS[index % COLORS.length] }} />
+                <strong className="artifact-summary-item__label">{entry[labelKey]}</strong>
+              </div>
+              <span className="artifact-summary-item__metrics">
+                {valueKeys.slice(0, 2).map((key) => `${key}: ${entry[key]}`).join(' • ')}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  const truncatedChartData = chartData.slice(0, compact ? 5 : 7)
+  const height = shapedType === 'donut' ? (compact ? 250 : 280) : compact ? 220 : 250
+  const tickFontSize = compact ? 10 : 11
+  const chartMargin = shapedType === 'donut'
+    ? { top: 8, right: 8, bottom: 8, left: 8 }
+    : { top: 10, right: 12, bottom: 30, left: 0 }
 
   return (
     <div className={`artifact-chart artifact-chart--${shapedType} ${compact ? 'artifact-chart--compact' : ''}`}>
       {title && <h4>{title}</h4>}
       <ResponsiveContainer width="100%" height={height}>
         {shapedType === 'trend' ? (
-          <AreaChart data={chartData}>
-            <XAxis dataKey={labelKey} tick={{ fill: '#94a9b6', fontSize: 11 }} />
-            <YAxis tick={{ fill: '#94a9b6', fontSize: 11 }} />
+          <AreaChart data={truncatedChartData} margin={chartMargin}>
+            <XAxis
+              dataKey={labelKey}
+              tick={{ fill: '#94a9b6', fontSize: tickFontSize }}
+              tickLine={false}
+              axisLine={false}
+              minTickGap={18}
+            />
+            <YAxis
+              tick={{ fill: '#94a9b6', fontSize: tickFontSize }}
+              tickLine={false}
+              axisLine={false}
+              width={36}
+            />
             <Tooltip content={<CustomTooltip />} />
             {valueKeys.slice(0, 2).map((key, i) => (
               <Area
@@ -100,31 +154,57 @@ function ArtifactChart({ data, title, chartType, compact = false }) {
         ) : shapedType === 'donut' ? (
           <PieChart>
             <Pie
-              data={chartData}
+              data={truncatedChartData}
               dataKey="value"
               nameKey="name"
               innerRadius={compact ? 34 : 42}
               outerRadius={compact ? 58 : 66}
               paddingAngle={4}
+              labelLine={false}
             >
-              {chartData.map((entry, index) => (
+              {truncatedChartData.map((entry, index) => (
                 <Cell key={`${entry.name}-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>
             <Tooltip content={<CustomTooltip />} />
-            <Legend />
           </PieChart>
         ) : (
-          <BarChart data={chartData}>
-            <XAxis dataKey={labelKey} tick={{ fill: '#94a9b6', fontSize: 11 }} />
-            <YAxis tick={{ fill: '#94a9b6', fontSize: 11 }} />
+          <BarChart data={truncatedChartData} margin={chartMargin} barCategoryGap={compact ? 14 : 18}>
+            <XAxis
+              dataKey={labelKey}
+              tick={{ fill: '#94a9b6', fontSize: tickFontSize }}
+              tickLine={false}
+              axisLine={false}
+              interval={0}
+              angle={truncatedChartData.length > 4 ? -18 : 0}
+              textAnchor={truncatedChartData.length > 4 ? 'end' : 'middle'}
+              height={truncatedChartData.length > 4 ? 54 : 30}
+            />
+            <YAxis
+              tick={{ fill: '#94a9b6', fontSize: tickFontSize }}
+              tickLine={false}
+              axisLine={false}
+              width={36}
+            />
             <Tooltip content={<CustomTooltip />} />
             {valueKeys.slice(0, 4).map((key, i) => (
-              <Bar key={key} dataKey={key} fill={COLORS[i % COLORS.length]} radius={[4, 4, 0, 0]} />
+              <Bar key={key} dataKey={key} fill={COLORS[i % COLORS.length]} radius={[6, 6, 0, 0]} maxBarSize={compact ? 26 : 32} />
             ))}
           </BarChart>
         )}
       </ResponsiveContainer>
+
+      {shapedType === 'donut' ? (
+        <div className="artifact-chart__legend">
+          {truncatedChartData.map((entry, index) => (
+            <div key={`${entry.name}-${index}`} className="artifact-chart__legend-item">
+              <span className="artifact-chart__legend-swatch" style={{ background: COLORS[index % COLORS.length] }} />
+              <span className="artifact-chart__legend-label">{entry.name}</span>
+              <span className="artifact-chart__legend-value">{entry.value}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   )
 }
