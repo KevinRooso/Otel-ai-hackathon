@@ -1,0 +1,240 @@
+/* ── Design tokens ── */
+:root {
+  /* Midnight navy base */
+  --bg:            #06101E;
+  --surface-1:     #0C1A2E;
+  --surface-2:     #112239;
+  --surface-3:     #162B46;
+  --border:        #1C3252;
+  --border-subtle: #0F1C32;
+
+  /* Amber gold — revenue, money */
+  --cta:           #D98E1A;
+  --cta-hover:     #BF7910;
+  --cta-dim:       rgba(217,142,26,0.12);
+
+  /* Semantic colours */
+  --positive:      #2DD4BF;   /* teal  — pickup, new business */
+  --positive-dim:  rgba(45,212,191,0.10);
+  --danger:        #F07070;   /* coral — risk, cancellations */
+  --danger-dim:    rgba(240,112,112,0.10);
+  --warning:       #FBBF24;   /* amber — concentration risk */
+
+  /* Text */
+  --text-1:        #EDF2FF;
+  --text-2:        #6882A8;
+  --text-3:        #374F6C;
+
+  /* Fonts */
+  --font:          'Outfit', sans-serif;
+  --font-display:  'DM Serif Display', serif;
+  --font-mono:     'JetBrains Mono', monospace;
+
+  /* Shape */
+  --radius:        8px;
+  --radius-lg:     12px;
+  --radius-xl:     18px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text-1);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-subtle); }
+
+/* ── Skeleton pulse ── */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+.skeleton {
+  background: var(--surface-2);
+  border-radius: 4px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* ── Spin ── */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 0.8s linear infinite; }
+
+/* ── Markdown content ── */
+.md p {
+  font-size: 0.875rem;
+  color: var(--text-2);
+  line-height: 1.8;
+  margin-bottom: 0.5rem;
+}
+.md p:last-child { margin-bottom: 0; }
+.md strong { color: var(--text-1); font-weight: 600; }
+.md em { color: var(--text-2); font-style: italic; }
+
+.md ul { list-style: none; margin: 0.3rem 0 0.6rem; padding: 0; }
+.md ul li {
+  font-size: 0.875rem;
+  color: var(--text-2);
+  padding: 0.15rem 0 0.15rem 1.1rem;
+  position: relative;
+  line-height: 1.7;
+}
+.md ul li::before {
+  content: '·';
+  position: absolute;
+  left: 0.3rem;
+  color: var(--cta);
+  font-weight: 700;
+}
+
+.md h2 {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin: 1.2rem 0 0.5rem;
+}
+.md h2:first-child { margin-top: 0; }
+.md h3 {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-1);
+  margin: 0.8rem 0 0.3rem;
+}
+
+.md hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1rem 0;
+}
+
+/* ── Markdown tables ── */
+.md table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  margin: 0.75rem 0;
+  font-family: var(--font-mono);
+}
+.md th {
+  text-align: left;
+  color: var(--text-3);
+  font-weight: 500;
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-family: var(--font);
+}
+.md td {
+  padding: 0.4rem 0.75rem;
+  color: var(--text-2);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.md tr:last-child td { border-bottom: none; }
+.md td strong { color: var(--text-1); }
+.md tbody tr:hover td { background: rgba(255,255,255,0.02); }
+
+/* ── Chat bubbles ── */
+.bubble-agent {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 2px var(--radius-lg) var(--radius-lg) var(--radius-lg);
+}
+.bubble-gm {
+  background: var(--cta-dim);
+  border: 1px solid rgba(217,142,26,0.25);
+  border-radius: var(--radius-lg) 2px var(--radius-lg) var(--radius-lg);
+}
+.bubble-gm p { color: var(--text-1) !important; font-size: 0.875rem !important; }
+.bubble-agent .md p { font-size: 0.875rem; }
+
+/* ── Briefing card — larger, more readable body ── */
+.brief-card p {
+  font-size: 0.95rem !important;
+  color: var(--text-1) !important;
+  line-height: 1.85 !important;
+  margin-bottom: 0.6rem !important;
+}
+.brief-card strong { color: var(--text-1) !important; font-weight: 700 !important; }
+.brief-card ul li { font-size: 0.93rem !important; color: var(--text-2) !important; }
+
+/* ── Quote block in chat ── */
+.md blockquote {
+  border-left: 2px solid var(--cta);
+  padding: 0.4rem 0.75rem;
+  margin: 0.5rem 0;
+  background: var(--cta-dim);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+.md blockquote p {
+  color: var(--text-2) !important;
+  font-size: 0.82rem !important;
+  font-style: italic;
+  margin: 0 !important;
+}
+
+/* ── Tab bar ── */
+.tab-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 0.78rem;
+  font-weight: 500;
+  padding: 0 1rem;
+  height: 100%;
+  border-bottom: 2px solid transparent;
+  transition: color 0.2s, border-color 0.2s;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.tab-btn.active {
+  color: var(--text-1);
+  border-bottom-color: var(--cta);
+}
+.tab-btn:not(.active) {
+  color: var(--text-3);
+}
+.tab-btn:not(.active):hover { color: var(--text-2); }
+
+/* ── Quote tooltip ── */
+.quote-tooltip {
+  position: fixed;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--surface-3);
+  border: 1px solid var(--cta);
+  border-radius: 20px;
+  padding: 0.3rem 0.75rem;
+  font-family: var(--font);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--cta);
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  pointer-events: all;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.quote-tooltip:hover {
+  background: var(--cta-dim);
+}

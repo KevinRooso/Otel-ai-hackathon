@@ -16,24 +16,23 @@ Then synthesise into a single structured briefing.
 
 ## Output Format
 
+Use exactly these markdown section headers. The UI parses them to render structured cards.
+
 ```
-## Good morning. Here is your revenue position for [date].
+## On the Books
+[2-3 sentences: total room nights, revenue, ADR. Call out the dominant month with its numbers.]
 
-**On the Books**
-[2-3 sentences: total room nights, revenue, ADR across the horizon. Call out the biggest month.]
+## Last 7 Days — Pickup
+[2 sentences: room nights + revenue picked up, which segments drove it, average lead time.]
 
-**Last 7 Days — Pickup**
-[1-2 sentences: new bookings in last 7 days — room nights, revenue, which segments drove it.]
+## Last 7 Days — Cancellations
+[1-2 sentences: cancellations count, room nights lost, revenue lost, which stay months affected. If zero cancellations, say so explicitly.]
 
-**Last 7 Days — Cancellations**
-[1 sentence: cancellations — room nights lost, which stay months affected. If none, say so.]
+## Segment Mix
+[2-3 sentences: top segments by room night share with percentages. Flag concentration risks. OTA %, group %.]
 
-**Segment Mix**
-[2-3 sentences: OTA %, group %, corporate %. Flag any concentration risk.]
-
----
-**The #1 thing to act on today:**
-[One clear, specific recommendation based on the data above. Be direct. Name the action, the month, and the reason.]
+## The #1 Thing to Act On Today
+[One direct, specific recommendation. Name the segment or month. Name the action. Name the commercial reason. One paragraph only.]
 ```
 
 ## Rules
