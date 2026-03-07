@@ -5,7 +5,8 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from sse_starlette.sse import EventSourceResponse, ServerSentEvent
+from sse_starlette.event import ServerSentEvent
+from sse_starlette.sse import EventSourceResponse
 
 from agent import run_agent, run_morning_briefing, run_greeting_briefing
 from db import check_connection
@@ -32,7 +33,7 @@ class BriefingRequest(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     api_key: Optional[str] = None
-    history: list = []          # conversation messages from the frontend
+    history: list = []
 
 class AgentResponse(BaseModel):
     response: str
@@ -44,6 +45,11 @@ class HealthResponse(BaseModel):
 
 class MemoryResponse(BaseModel):
     memory: dict
+
+
+def _log_interaction(user_message: str, assistant_message: str):
+    memory.log_session(f"Q: {user_message[:50]} | A: {assistant_message[:150]}")
+    memory.log_session_turn(user_message, assistant_message)
 
 
 # ---------------------------------------------------------------------------
@@ -64,6 +70,7 @@ def briefing(req: BriefingRequest):
         else:
             text, history = run_morning_briefing(api_key=req.api_key)
         memory.log_session(f"Morning briefing: {text[:200]}")
+        memory.log_session_turn("morning briefing", text)
         return {"response": text, "history": history}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -81,7 +88,7 @@ def chat(req: ChatRequest):
             api_key=req.api_key,
             history=req.history,
         )
-        memory.log_session(f"Q: {req.message[:50]} | A: {text[:150]}")
+        _log_interaction(req.message, text)
         return {"response": text, "history": updated_history}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -113,7 +120,7 @@ async def chat_stream(req: ChatRequest):
                 data=json.dumps({"type": "done", "history": updated_history}),
                 event="done",
             )
-            memory.log_session(f"Q: {req.message[:50]} | A: {text[:150]}")
+            _log_interaction(req.message, text)
         except Exception as e:
             yield ServerSentEvent(
                 data=json.dumps({"type": "error", "message": str(e)}),

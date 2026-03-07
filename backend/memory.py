@@ -4,6 +4,7 @@ from pathlib import Path
 
 MEMORY_FILE = Path(__file__).parent / "memory.json"
 MAX_SESSION_LOG = 10  # keep last N session summaries
+MAX_TRANSCRIPTS = 12
 
 
 class MemoryStore:
@@ -19,8 +20,19 @@ class MemoryStore:
 
     def _load(self) -> dict:
         if MEMORY_FILE.exists():
-            return json.loads(MEMORY_FILE.read_text(encoding="utf-8"))
-        return {"preferences": {}, "thresholds": {}, "session_log": []}
+            raw = json.loads(MEMORY_FILE.read_text(encoding="utf-8"))
+            return {
+                "preferences": raw.get("preferences", {}),
+                "thresholds": raw.get("thresholds", {}),
+                "session_log": raw.get("session_log", []),
+                "session_transcripts": raw.get("session_transcripts", []),
+            }
+        return {
+            "preferences": {},
+            "thresholds": {},
+            "session_log": [],
+            "session_transcripts": [],
+        }
 
     def _save(self):
         MEMORY_FILE.write_text(
@@ -50,8 +62,25 @@ class MemoryStore:
         self._data["session_log"] = self._data["session_log"][-MAX_SESSION_LOG:]
         self._save()
 
+    def log_session_turn(self, user_message: str, assistant_message: str):
+        """Store a compact transcript turn for cross-session continuity."""
+        cleaned_assistant = " ".join((assistant_message or "").split())
+        cleaned_user = " ".join((user_message or "").split())
+        self._data["session_transcripts"].append({
+            "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "user": cleaned_user[:240],
+            "assistant": cleaned_assistant[:400],
+        })
+        self._data["session_transcripts"] = self._data["session_transcripts"][-MAX_TRANSCRIPTS:]
+        self._save()
+
     def clear(self):
-        self._data = {"preferences": {}, "thresholds": {}, "session_log": []}
+        self._data = {
+            "preferences": {},
+            "thresholds": {},
+            "session_log": [],
+            "session_transcripts": [],
+        }
         self._save()
 
     # ------------------------------------------------------------------
@@ -80,6 +109,14 @@ class MemoryStore:
             recent = self._data["session_log"][-3:]
             log = " | ".join(f"[{e['date']}] {e['insight']}" for e in recent)
             parts.append(f"Recent session notes: {log}")
+
+        if self._data["session_transcripts"]:
+            recent_turns = self._data["session_transcripts"][-3:]
+            turns = " | ".join(
+                f"[{entry['date']}] User: {entry['user']} -> Assistant: {entry['assistant']}"
+                for entry in recent_turns
+            )
+            parts.append(f"Recent cross-session conversation turns: {turns}")
 
         return "\n".join(parts)
 

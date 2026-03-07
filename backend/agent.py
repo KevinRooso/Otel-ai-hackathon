@@ -57,6 +57,26 @@ CONCENTRATION_RISK_HINTS = (
 )
 
 
+PREDICTION_HINTS = (
+    "tomorrow",
+    "yesterday",
+    "next month",
+    "last month",
+    "this month",
+    "predict",
+    "prediction",
+    "forecast",
+    "project",
+    "projection",
+    "expected",
+    "expect",
+    "outlook",
+    "what will happen",
+    "what do you expect",
+    "likely",
+)
+
+
 def _classify_skill(user_message: str, history: list | None = None) -> str:
     """Pick the primary skill to emphasize for this turn."""
     text = re.sub(r"\s+", " ", user_message.strip().lower())
@@ -65,6 +85,9 @@ def _classify_skill(user_message: str, history: list | None = None) -> str:
 
     if any(phrase in text for phrase in CONCENTRATION_RISK_HINTS):
         return "concentration_risk"
+
+    if any(phrase in text for phrase in PREDICTION_HINTS):
+        return "prediction_guidance"
 
     if not history and text in {"briefing", "overview", "status"}:
         return "morning_briefing"
@@ -91,6 +114,9 @@ Response style:
 - Round revenue to nearest whole number, ADR to 2 decimal places, percentages to 1 decimal place
 - State your assumption whenever date scope or cancellation handling is ambiguous
 - Never present a number without context
+- Return the final user-facing answer as a polished HTML fragment, not Markdown
+- Use semantic HTML with consistent `otel-response*` and `otel-metric-card*` classes when useful
+- Never include script tags, inline JavaScript, or full-page HTML wrappers
 
 Proactive Intelligence:
 - After answering, suggest 2-3 follow-up questions the GM might want to explore
@@ -120,6 +146,14 @@ Proactive Intelligence:
             "Use get_concentration_risk and get_segment_mix as primary tools. "
             "Highlight any segments exceeding safe thresholds and recommend diversification actions."
         )
+    elif active_skill == "prediction_guidance":
+        base += (
+            "\n\nActive skill for this turn: Prediction Guidance. "
+            "If the user asks about future performance, relative dates, or expected outcomes, "
+            "treat the answer as a directional commercial estimate rather than a formal forecast. "
+            "State the exact date assumption you used, distinguish observed facts from your estimate, "
+            "and clearly say when you are inferring from current on-the-books data and recent patterns."
+        )
     else:
         base += (
             "\n\nActive skill for this turn: Revenue Analysis. "
@@ -133,6 +167,46 @@ Proactive Intelligence:
         base += f"\n\nGM context from previous sessions:\n{mem_context}"
 
     return base
+
+
+def _normalize_final_response(response_text: str) -> str:
+    text = (response_text or "").strip()
+    if not text:
+        return text
+
+    if re.search(r"</?(section|div|h2|h3|p|ul|ol|li|strong|span)\b", text, re.IGNORECASE):
+        return text
+
+    paragraphs = [segment.strip() for segment in re.split(r"\n\s*\n", text) if segment.strip()]
+    if not paragraphs:
+        return text
+
+    title = "Revenue Update"
+    lead = paragraphs[0]
+    remaining = paragraphs[1:]
+
+    if len(paragraphs) > 1 and len(paragraphs[0]) < 90:
+        title = re.sub(r"^[#\-*\s]+", "", paragraphs[0]).strip(" :") or title
+        lead = paragraphs[1]
+        remaining = paragraphs[2:]
+
+    html_parts = [
+        '<section class="otel-response">',
+        '  <div class="otel-response__eyebrow">Revenue Intelligence</div>',
+        f'  <h2 class="otel-response__title">{title}</h2>',
+        f'  <p class="otel-response__lead">{lead}</p>',
+    ]
+
+    for paragraph in remaining:
+        cleaned = paragraph.replace("\n", " ").strip()
+        html_parts.extend([
+            '  <div class="otel-response__section">',
+            f'    <p>{cleaned}</p>',
+            '  </div>',
+        ])
+
+    html_parts.append('</section>')
+    return "\n".join(html_parts)
 
 
 # ---------------------------------------------------------------------------
@@ -185,7 +259,7 @@ def _run_tool_loop(client: OpenAI, messages: list, system_prompt: str) -> str:
                 })
 
         else:
-            return choice.message.content or ""
+            return _normalize_final_response(choice.message.content or "")
 
 
 # ---------------------------------------------------------------------------

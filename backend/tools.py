@@ -1,6 +1,7 @@
 import json
 import re
 from decimal import Decimal
+from datetime import date, datetime, timedelta
 from db import run_sql
 from memory import memory
 
@@ -241,10 +242,18 @@ TOOLS = [
 # ---------------------------------------------------------------------------
 
 def _serialize(rows: list[dict]) -> list[dict]:
-    """Convert Decimal to float so rows are JSON-serialisable."""
+    """Convert DB-native values to JSON-serialisable primitives."""
     out = []
     for row in rows:
-        out.append({k: float(v) if isinstance(v, Decimal) else v for k, v in row.items()})
+        serialized_row = {}
+        for key, value in row.items():
+            if isinstance(value, Decimal):
+                serialized_row[key] = float(value)
+            elif isinstance(value, (date, datetime)):
+                serialized_row[key] = value.isoformat()
+            else:
+                serialized_row[key] = value
+        out.append(serialized_row)
     return out
 
 
@@ -293,6 +302,68 @@ def _normalize_stay_month(stay_month: str | None) -> str | None:
         return f"{int(year):04d}-{month:02d}"
 
     raise ValueError("Invalid stay_month. Use YYYY-MM or a month name like 'July 2026'.")
+
+
+def _shift_month(base_date: date, months: int) -> tuple[int, int]:
+    year = base_date.year + ((base_date.month - 1 + months) // 12)
+    month = ((base_date.month - 1 + months) % 12) + 1
+    return year, month
+
+
+def normalize_relative_timeframe(value: str | None) -> dict | None:
+    if value is None:
+        return None
+
+    raw = value.strip()
+    if not raw:
+        return None
+
+    normalized = raw.lower()
+    today = date.today()
+
+    if normalized == "today":
+        return {"kind": "day", "label": "today", "date": today.isoformat()}
+    if normalized == "tomorrow":
+        target = today + timedelta(days=1)
+        return {"kind": "day", "label": "tomorrow", "date": target.isoformat()}
+    if normalized == "yesterday":
+        target = today - timedelta(days=1)
+        return {"kind": "day", "label": "yesterday", "date": target.isoformat()}
+
+    if normalized == "this month":
+        return {
+            "kind": "month",
+            "label": "this month",
+            "stay_month": f"{today.year:04d}-{today.month:02d}",
+        }
+    if normalized == "next month":
+        year, month = _shift_month(today, 1)
+        return {
+            "kind": "month",
+            "label": "next month",
+            "stay_month": f"{year:04d}-{month:02d}",
+        }
+    if normalized == "last month":
+        year, month = _shift_month(today, -1)
+        return {
+            "kind": "month",
+            "label": "last month",
+            "stay_month": f"{year:04d}-{month:02d}",
+        }
+
+    next_match = re.fullmatch(r"next\s+([a-zA-Z]+)", normalized)
+    if next_match:
+        month_name = next_match.group(1)
+        month = MONTH_NAME_TO_NUMBER.get(month_name)
+        if month:
+            year = today.year + (1 if month <= today.month else 0)
+            return {
+                "kind": "month",
+                "label": raw,
+                "stay_month": f"{year:04d}-{month:02d}",
+            }
+
+    return None
 
 
 def _validate_sql(query: str) -> str | None:

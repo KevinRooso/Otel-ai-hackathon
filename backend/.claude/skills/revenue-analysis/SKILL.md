@@ -80,6 +80,14 @@ SUM(number_of_spaces) FILTER (WHERE market_code = 'OTA') * 100.0
 | Cancellation timing | `cancellation_datetime` |
 | Lead time analysis | `lead_time` |
 
+### Relative date interpretation
+- `today` = `CURRENT_DATE`
+- `tomorrow` = `CURRENT_DATE + 1 day`
+- `yesterday` = `CURRENT_DATE - 1 day`
+- `this month` = current calendar month
+- `next month` = next calendar month
+- If a user asks for a named month without a year, infer the next relevant matching month in the dataset and state that assumption
+
 ## Cancellation Handling
 - **Exclude** `reservation_status = 'Cancelled'` by default on all OTB/revenue questions
 - **Include** only when the question explicitly asks about cancellations
@@ -112,6 +120,7 @@ SUM(number_of_spaces) FILTER (WHERE market_code = 'OTA') * 100.0
 ## Guardrails
 - Always state whether cancelled reservations are included or excluded
 - When the question has date ambiguity, state the assumption (e.g. "looking at stay dates April–August")
+- When the question is predictive or future-looking, clearly label it as a directional estimate rather than a statistical forecast
 - Never present a single number without context — always add what's driving it
 - Flag OTA > 40% of room nights as a concentration risk
 - Flag any single segment > 50% of room nights as a dependency risk
