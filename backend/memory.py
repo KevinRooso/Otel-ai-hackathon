@@ -35,9 +35,12 @@ class MemoryStore:
         }
 
     def _save(self):
-        MEMORY_FILE.write_text(
-            json.dumps(self._data, indent=2, default=str), encoding="utf-8"
-        )
+        try:
+            MEMORY_FILE.write_text(
+                json.dumps(self._data, indent=2, default=str), encoding="utf-8"
+            )
+        except OSError:
+            pass  # read-only filesystem (e.g. Vercel serverless)
 
     # ------------------------------------------------------------------
     # Write
