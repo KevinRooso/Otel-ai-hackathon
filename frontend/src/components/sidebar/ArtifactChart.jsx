@@ -61,9 +61,30 @@ function shapeResponseVisualizationData(data, chartType) {
 
   return data.map((item) => ({
     name: item.label || item.name || item.segment || item.month,
-    value: item.value ?? item.pct ?? item.share ?? item.room_nights ?? item.revenue,
+    value: item.value ?? item.pct ?? item.share ?? item.room_nights ?? item.revenue ?? 0,
     note: item.note,
   }))
+}
+
+function normalizeNumericValue(value) {
+  const num = Number(value)
+  return Number.isFinite(num) ? num : 0
+}
+
+function formatLegendValue(value) {
+  const num = normalizeNumericValue(value)
+  if (Math.abs(num) >= 1000) {
+    return new Intl.NumberFormat('en-US').format(num)
+  }
+  return Number.isInteger(num) ? String(num) : num.toFixed(1)
+}
+
+function truncateAxisLabel(label) {
+  const text = String(label || '')
+  if (text.length <= 18) {
+    return text
+  }
+  return `${text.slice(0, 16)}...`
 }
 
 function shouldUseSummaryLayout(chartData, shapedType) {
@@ -82,7 +103,7 @@ function shouldUseSummaryLayout(chartData, shapedType) {
   return chartData.length > 6
 }
 
-function ArtifactChart({ data, title, chartType, compact = false }) {
+function ArtifactChart({ data, title, chartType, compact = false, onExpand }) {
   if (!data || data.length === 0) return null
 
   const shapedType = inferChartShape(data, chartType)
@@ -94,7 +115,7 @@ function ArtifactChart({ data, title, chartType, compact = false }) {
 
   if (summaryOnly) {
     return (
-      <div className="artifact-chart artifact-chart--summary">
+      <button type="button" className="artifact-chart artifact-chart--summary artifact-card-button" onClick={onExpand}>
         {title && <h4>{title}</h4>}
         <div className="artifact-summary-list">
           {chartData.slice(0, 5).map((entry, index) => (
@@ -104,12 +125,12 @@ function ArtifactChart({ data, title, chartType, compact = false }) {
                 <strong className="artifact-summary-item__label">{entry[labelKey]}</strong>
               </div>
               <span className="artifact-summary-item__metrics">
-                {valueKeys.slice(0, 2).map((key) => `${key}: ${entry[key]}`).join(' • ')}
+                {valueKeys.slice(0, 2).map((key) => `${key}: ${formatLegendValue(entry[key])}`).join(' • ')}
               </span>
             </div>
           ))}
         </div>
-      </div>
+      </button>
     )
   }
 
@@ -128,6 +149,7 @@ function ArtifactChart({ data, title, chartType, compact = false }) {
           <AreaChart data={truncatedChartData} margin={chartMargin}>
             <XAxis
               dataKey={labelKey}
+              tickFormatter={truncateAxisLabel}
               tick={{ fill: '#94a9b6', fontSize: tickFontSize }}
               tickLine={false}
               axisLine={false}
@@ -172,6 +194,7 @@ function ArtifactChart({ data, title, chartType, compact = false }) {
           <BarChart data={truncatedChartData} margin={chartMargin} barCategoryGap={compact ? 14 : 18}>
             <XAxis
               dataKey={labelKey}
+              tickFormatter={truncateAxisLabel}
               tick={{ fill: '#94a9b6', fontSize: tickFontSize }}
               tickLine={false}
               axisLine={false}
@@ -200,10 +223,16 @@ function ArtifactChart({ data, title, chartType, compact = false }) {
             <div key={`${entry.name}-${index}`} className="artifact-chart__legend-item">
               <span className="artifact-chart__legend-swatch" style={{ background: COLORS[index % COLORS.length] }} />
               <span className="artifact-chart__legend-label">{entry.name}</span>
-              <span className="artifact-chart__legend-value">{entry.value}</span>
+              <span className="artifact-chart__legend-value">{formatLegendValue(entry.value)}</span>
             </div>
           ))}
         </div>
+      ) : null}
+
+      {onExpand ? (
+        <button type="button" className="artifact-expand-link" onClick={onExpand}>
+          Open expanded view
+        </button>
       ) : null}
     </div>
   )

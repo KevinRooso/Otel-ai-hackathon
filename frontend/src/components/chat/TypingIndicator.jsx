@@ -16,18 +16,24 @@ function TypingIndicator({ mode = 'chat' }) {
 
   return (
     <div className="typing-indicator">
-      <div className="typing-indicator__dots" aria-hidden="true">
-        <span className="typing-dot" />
-        <span className="typing-dot" />
-        <span className="typing-dot" />
+      <div className="typing-indicator__rail" aria-hidden="true">
+        <span className="typing-indicator__pulse" />
+        <div className="typing-indicator__dots">
+          <span className="typing-dot" />
+          <span className="typing-dot" />
+          <span className="typing-dot" />
+        </div>
       </div>
       <div className="typing-indicator__content">
         <p className="typing-indicator__title">
           {mode === 'briefing' ? 'Getting your briefing ready' : 'Otel AI is working through the numbers'}
         </p>
         <ul className="typing-indicator__steps">
-          {labels.map((label) => (
-            <li key={label}>{label}</li>
+          {labels.map((label, index) => (
+            <li key={label} className="typing-indicator__step-item" style={{ animationDelay: `${index * 0.18}s` }}>
+              <span className="typing-indicator__step-bullet" aria-hidden="true" />
+              <span>{label}</span>
+            </li>
           ))}
         </ul>
       </div>
